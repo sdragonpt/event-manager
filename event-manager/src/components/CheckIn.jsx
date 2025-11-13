@@ -310,8 +310,8 @@ function CheckIn() {
             {/* Este div passa a existir SEMPRE no DOM */}
             <div
               id="qr-reader"
-              className={`mx-auto ${isScanning ? "" : "hidden"}`}
-              style={{ maxWidth: "500px" }}
+              className="mx-auto"
+              style={{ maxWidth: "500px", width: "100%" }}
             ></div>
 
             {/* Último check-in */}
