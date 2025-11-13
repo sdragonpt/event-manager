@@ -205,7 +205,11 @@ function CheckIn() {
 
       // Sucesso
       setLastCheckin({ ...guest, alreadyCheckedIn: false });
-      toast.success(`✅ Check-in efetuado: ${guest.nome} — Mesa ${guest.mesa}`);
+      toast.success(
+        `✅ Check-in efetuado: ${guest.nome}${
+          guest.mesa ? " — Mesa " + guest.mesa : ""
+        }`
+      );
 
       // Atualizar estatísticas e histórico
       loadStats();
