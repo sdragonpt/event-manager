@@ -138,7 +138,6 @@ function CheckIn() {
 
   const onScanSuccess = async (decodedText) => {
     try {
-      // Parse dos dados do QR code
       const qrData = JSON.parse(decodedText);
 
       if (!qrData.id) {
@@ -147,6 +146,20 @@ function CheckIn() {
       }
 
       await processCheckIn(qrData.id);
+
+      // === NOVO CÓDIGO AQUI === //
+      if (scanner) {
+        scanner.stop().then(() => {
+          scanner.clear();
+          setScanner(null); // limpar estado
+
+          // espera 2–3s e recomeça
+          setTimeout(() => {
+            startScanner();
+          }, 2000);
+        });
+      }
+      // ========================= //
     } catch (error) {
       console.error("Erro ao processar QR code:", error);
       toast.error("QR Code inválido");
