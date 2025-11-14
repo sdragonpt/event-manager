@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
 import CreateEvent from "./components/CreateEvent";
 import UploadGuests from "./components/UploadGuests";
@@ -6,12 +6,15 @@ import Confirm from "./components/Confirm";
 import CheckIn from "./components/CheckIn";
 import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
+import EditEvent from "./components/EditEvent";
 
 function App() {
   const location = useLocation();
 
-  // autenticação apenas em memória (por sessão)
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // autenticação com persistência no localStorage
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem("isAuthenticated") === "true";
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Não mostrar navegação na página de confirmação nem na página de login
@@ -21,12 +24,19 @@ function App() {
 
   const handleLogin = () => {
     setIsAuthenticated(true);
+    localStorage.setItem("isAuthenticated", "true");
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
+    localStorage.removeItem("isAuthenticated");
     setMobileOpen(false);
   };
+
+  // Fechar menu mobile quando mudar de rota
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   // wrapper para proteger rotas
   const RequireAuth = ({ children }) => {
@@ -40,75 +50,91 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       {showNav && (
         <>
-          <nav className="bg-white shadow-sm border-b">
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between h-16">
                 <div className="flex items-center space-x-8">
                   <Link
                     to="/"
-                    className="text-xl font-semibold text-gray-900 hover:text-blue-600 transition"
+                    className="flex items-center space-x-2 text-xl font-semibold text-gray-900 hover:text-blue-600 transition"
                     onClick={() => setMobileOpen(false)}
                   >
-                    📅 Gestor de Eventos
+                    <span className="text-2xl">📅</span>
+                    <span className="hidden sm:inline">Gestor de Eventos</span>
                   </Link>
                   {/* Menu desktop */}
-                  <div className="hidden sm:flex space-x-6">
+                  <div className="hidden md:flex space-x-1">
                     <Link
                       to="/"
-                      className={`text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition ${
+                      className={`px-3 py-2 text-sm font-medium rounded-md transition ${
                         location.pathname === "/"
-                          ? "text-blue-600 border-b-2 border-blue-600"
-                          : ""
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     >
                       Criar Evento
                     </Link>
                     <Link
                       to="/upload"
-                      className={`text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition ${
+                      className={`px-3 py-2 text-sm font-medium rounded-md transition ${
                         location.pathname === "/upload"
-                          ? "text-blue-600 border-b-2 border-blue-600"
-                          : ""
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     >
-                      Upload Convidados
+                      Convidados
                     </Link>
                     <Link
                       to="/checkin"
-                      className={`text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition ${
+                      className={`px-3 py-2 text-sm font-medium rounded-md transition ${
                         location.pathname === "/checkin"
-                          ? "text-blue-600 border-b-2 border-blue-600"
-                          : ""
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     >
                       Check-in
                     </Link>
                     <Link
                       to="/dashboard"
-                      className={`text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition ${
+                      className={`px-3 py-2 text-sm font-medium rounded-md transition ${
                         location.pathname === "/dashboard"
-                          ? "text-blue-600 border-b-2 border-blue-600"
-                          : ""
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     >
                       Dashboard
                     </Link>
-                    {isAuthenticated && (
-                      <button
-                        onClick={handleLogout}
-                        className="text-red-600 hover:text-red-700 px-3 py-2 text-sm font-medium transition"
-                      >
-                        Sair
-                      </button>
-                    )}
                   </div>
                 </div>
 
-                {/* Menu mobile (botão) */}
-                <div className="sm:hidden flex items-center">
+                <div className="flex items-center space-x-4">
+                  {/* Botão de Logout desktop */}
+                  {isAuthenticated && (
+                    <button
+                      onClick={handleLogout}
+                      className="hidden md:flex items-center space-x-1 text-red-600 hover:text-red-700 px-3 py-2 text-sm font-medium transition"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                        />
+                      </svg>
+                      <span>Sair</span>
+                    </button>
+                  )}
+
+                  {/* Menu mobile (botão) */}
                   <button
                     onClick={() => setMobileOpen(!mobileOpen)}
-                    className="text-gray-600 hover:text-gray-900 p-2 focus:outline-none"
+                    className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <svg
                       className="h-6 w-6"
@@ -122,8 +148,8 @@ function App() {
                         strokeWidth={2}
                         d={
                           mobileOpen
-                            ? "M6 18L18 6M6 6l12 12" // X
-                            : "M4 6h16M4 12h16M4 18h16" // hambúrguer
+                            ? "M6 18L18 6M6 6l12 12"
+                            : "M4 6h16M4 12h16M4 18h16"
                         }
                       />
                     </svg>
@@ -135,43 +161,58 @@ function App() {
 
           {/* Menu mobile (lista de links) */}
           {mobileOpen && (
-            <div className="sm:hidden bg-white shadow-md border-b">
-              <div className="px-4 py-3 space-y-2">
+            <div className="md:hidden bg-white shadow-lg border-b">
+              <div className="px-4 py-3 space-y-1">
                 <Link
                   to="/"
-                  onClick={() => setMobileOpen(false)}
-                  className="block text-gray-700 py-2 text-base"
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition ${
+                    location.pathname === "/"
+                      ? "bg-blue-50 text-blue-600"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
                 >
                   Criar Evento
                 </Link>
                 <Link
                   to="/upload"
-                  onClick={() => setMobileOpen(false)}
-                  className="block text-gray-700 py-2 text-base"
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition ${
+                    location.pathname === "/upload"
+                      ? "bg-blue-50 text-blue-600"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
                 >
-                  Upload Convidados
+                  Convidados
                 </Link>
                 <Link
                   to="/checkin"
-                  onClick={() => setMobileOpen(false)}
-                  className="block text-gray-700 py-2 text-base"
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition ${
+                    location.pathname === "/checkin"
+                      ? "bg-blue-50 text-blue-600"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
                 >
                   Check-in
                 </Link>
                 <Link
                   to="/dashboard"
-                  onClick={() => setMobileOpen(false)}
-                  className="block text-gray-700 py-2 text-base"
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition ${
+                    location.pathname === "/dashboard"
+                      ? "bg-blue-50 text-blue-600"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
                 >
                   Dashboard
                 </Link>
                 {isAuthenticated && (
-                  <button
-                    onClick={handleLogout}
-                    className="block text-red-600 py-2 text-base"
-                  >
-                    Sair
-                  </button>
+                  <>
+                    <div className="border-t my-2"></div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50 transition"
+                    >
+                      Sair
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -179,7 +220,7 @@ function App() {
         </>
       )}
 
-      <main className={showNav ? "py-8" : ""}>
+      <main className={showNav ? "py-6 sm:py-8" : ""}>
         <Routes>
           {/* login é público */}
           <Route
@@ -226,6 +267,14 @@ function App() {
             element={
               <RequireAuth>
                 <Dashboard />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/eventos/:id/editar"
+            element={
+              <RequireAuth>
+                <EditEvent />
               </RequireAuth>
             }
           />

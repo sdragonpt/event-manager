@@ -1,11 +1,14 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import toast from "react-hot-toast";
 
-function CreateEvent() {
+function EditEvent() {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   const [imageFile, setImageFile] = useState(null);
@@ -17,24 +20,54 @@ function CreateEvent() {
     imagem_url: "",
   });
 
+  useEffect(() => {
+    loadEvent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const loadEvent = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("eventos")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+
+      setFormData({
+        nome: data.nome || "",
+        data: data.data || "",
+        hora: data.hora || "",
+        local: data.local || "",
+        imagem_url: data.imagem_url || "",
+      });
+
+      setImagePreview(data.imagem_url || null);
+    } catch (error) {
+      console.error("Erro ao carregar evento:", error);
+      toast.error("Erro ao carregar evento");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [e.target.name]: e.target.value,
-    });
+    }));
   };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validar tipo de ficheiro
     if (!file.type.startsWith("image/")) {
       toast.error("Por favor, selecione um ficheiro de imagem válido");
       return;
     }
 
-    // Validar tamanho (máximo 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("A imagem deve ter no máximo 5MB");
       return;
@@ -42,7 +75,6 @@ function CreateEvent() {
 
     setImageFile(file);
 
-    // Criar preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result);
@@ -53,24 +85,22 @@ function CreateEvent() {
   const removeImage = () => {
     setImageFile(null);
     setImagePreview(null);
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       imagem_url: "",
-    });
+    }));
   };
 
-  const uploadImage = async (eventId) => {
+  const uploadImage = async () => {
     if (!imageFile) return null;
 
     setUploadingImage(true);
 
     try {
-      // Gerar nome único para o ficheiro
       const fileExt = imageFile.name.split(".").pop();
-      const fileName = `${eventId}-${Date.now()}.${fileExt}`;
+      const fileName = `${id}-${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // Upload para Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from("event-images")
         .upload(filePath, imageFile, {
@@ -80,7 +110,6 @@ function CreateEvent() {
 
       if (uploadError) throw uploadError;
 
-      // Obter URL pública da imagem
       const {
         data: { publicUrl },
       } = supabase.storage.from("event-images").getPublicUrl(filePath);
@@ -103,62 +132,62 @@ function CreateEvent() {
       return;
     }
 
-    setLoading(true);
+    setSaving(true);
 
     try {
-      // Primeiro, criar o evento sem a imagem
-      const { data: eventData, error: eventError } = await supabase
-        .from("eventos")
-        .insert([
-          {
-            nome: formData.nome,
-            data: formData.data,
-            hora: formData.hora,
-            local: formData.local,
-            imagem_url: null,
-          },
-        ])
-        .select()
-        .single();
+      let imagem_url = formData.imagem_url || null;
 
-      if (eventError) throw eventError;
-
-      // Se houver imagem, fazer upload e atualizar o evento
+      // Se escolheres uma nova imagem, faz upload e usa esse URL
       if (imageFile) {
-        const imageUrl = await uploadImage(eventData.id);
-
-        if (imageUrl) {
-          const { error: updateError } = await supabase
-            .from("eventos")
-            .update({ imagem_url: imageUrl })
-            .eq("id", eventData.id);
-
-          if (updateError) {
-            console.error("Erro ao atualizar URL da imagem:", updateError);
-            toast.error("Evento criado, mas falhou o upload da imagem");
-          }
+        const newUrl = await uploadImage();
+        if (newUrl) {
+          imagem_url = newUrl;
         }
       }
 
-      // Guardar o ID do evento no localStorage para usar depois
-      localStorage.setItem("currentEventId", eventData.id);
+      // Se retiraste a imagem (preview vazio e imagem_url vazio), apaga no DB
+      if (!imagePreview && !imageFile) {
+        imagem_url = null;
+      }
 
-      toast.success("Evento criado com sucesso!");
-      navigate("/upload");
+      const { error } = await supabase
+        .from("eventos")
+        .update({
+          nome: formData.nome,
+          data: formData.data,
+          hora: formData.hora,
+          local: formData.local,
+          imagem_url,
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast.success("Evento atualizado com sucesso!");
+      navigate("/dashboard");
     } catch (error) {
-      console.error("Erro ao criar evento:", error);
-      toast.error("Erro ao criar evento: " + error.message);
+      console.error("Erro ao atualizar evento:", error);
+      toast.error("Erro ao atualizar evento: " + error.message);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">A carregar evento...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4">
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">
-          Criar Novo Evento
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Editar Evento</h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Upload de Imagem */}
@@ -231,7 +260,7 @@ function CreateEvent() {
             )}
           </div>
 
-          {/* Nome do Evento */}
+          {/* Nome */}
           <div>
             <label
               htmlFor="nome"
@@ -246,8 +275,6 @@ function CreateEvent() {
               value={formData.nome}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Ex: Casamento João e Maria"
-              required
             />
           </div>
 
@@ -267,7 +294,6 @@ function CreateEvent() {
                 value={formData.data}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
               />
             </div>
 
@@ -285,7 +311,6 @@ function CreateEvent() {
                 value={formData.hora}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
               />
             </div>
           </div>
@@ -305,60 +330,31 @@ function CreateEvent() {
               value={formData.local}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Ex: Quinta do Palácio, Lisboa"
-              required
             />
           </div>
 
-          {/* Botão Submit */}
           <button
             type="submit"
-            disabled={loading || uploadingImage}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            disabled={saving || uploadingImage}
+            className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            {loading || uploadingImage ? (
-              <span className="flex items-center justify-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                {uploadingImage
-                  ? "A fazer upload da imagem..."
-                  : "A criar evento..."}
-              </span>
+            {saving || uploadingImage ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                <span>
+                  {uploadingImage
+                    ? "A atualizar imagem..."
+                    : "A guardar alterações..."}
+                </span>
+              </>
             ) : (
-              "Criar Evento"
+              "Guardar alterações"
             )}
           </button>
         </form>
-      </div>
-
-      {/* Informação adicional */}
-      <div className="mt-6 bg-blue-50 border-l-4 border-blue-400 p-4">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg
-              className="h-5 w-5 text-blue-400"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <p className="text-sm text-blue-700">
-              Após criar o evento, será redirecionado para fazer upload da lista
-              de convidados.
-            </p>
-            <p className="text-xs text-blue-600 mt-1">
-              A imagem do evento aparecerá no convite enviado aos convidados.
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );
 }
 
-export default CreateEvent;
+export default EditEvent;

@@ -10,6 +10,7 @@ function Confirm() {
   const [guest, setGuest] = useState(null);
   const [event, setEvent] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [rejected, setRejected] = useState(false);
   const [qrData, setQrData] = useState("");
   const qrRef = useRef(null);
 
@@ -38,6 +39,7 @@ function Confirm() {
 
       setGuest(guestData);
       setConfirmed(guestData.confirmado);
+      setRejected(guestData.rejeitado || false);
 
       // Buscar dados do evento
       const { data: eventData, error: eventError } = await supabase
@@ -73,7 +75,7 @@ function Confirm() {
       // Atualizar confirmação no banco
       const { error } = await supabase
         .from("convidados")
-        .update({ confirmado: true })
+        .update({ confirmado: true, rejeitado: false })
         .eq("id", guest.id);
 
       if (error) throw error;
@@ -82,10 +84,36 @@ function Confirm() {
       await saveQRCodeToStorage();
 
       setConfirmed(true);
+      setRejected(false);
       toast.success("Presença confirmada com sucesso!");
     } catch (error) {
       console.error("Erro ao confirmar presença:", error);
       toast.error("Erro ao confirmar presença");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!guest) return;
+
+    setLoading(true);
+
+    try {
+      // Atualizar rejeição no banco
+      const { error } = await supabase
+        .from("convidados")
+        .update({ confirmado: false, rejeitado: true })
+        .eq("id", guest.id);
+
+      if (error) throw error;
+
+      setConfirmed(false);
+      setRejected(true);
+      toast.success("Resposta registada. Lamentamos a sua ausência!");
+    } catch (error) {
+      console.error("Erro ao rejeitar convite:", error);
+      toast.error("Erro ao processar resposta");
     } finally {
       setLoading(false);
     }
@@ -111,7 +139,6 @@ function Confirm() {
       if (error) throw error;
     } catch (error) {
       console.error("Erro ao salvar QR code:", error);
-      // Não vamos mostrar erro ao utilizador pois a confirmação já foi feita
     }
   };
 
@@ -127,12 +154,26 @@ function Confirm() {
     toast.success("QR Code descarregado!");
   };
 
+  // Formatar hora sem segundos
+  const formatTime = (timeString) => {
+    if (!timeString) return "";
+    const [hours, minutes] = timeString.split(":");
+    return `${hours}:${minutes}`;
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">A carregar...</p>
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-blue-600 mx-auto"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-2xl">📅</span>
+            </div>
+          </div>
+          <p className="mt-4 text-gray-600 font-medium">
+            A carregar o seu convite...
+          </p>
         </div>
       </div>
     );
@@ -140,84 +181,193 @@ function Confirm() {
 
   if (!guest || !event) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="text-red-600 text-6xl mb-4">⚠️</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Link Inválido
-          </h1>
-          <p className="text-gray-600">
-            O link de confirmação não é válido ou expirou.
-          </p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4">
+        <div className="text-center max-w-md">
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <div className="text-red-500 text-6xl mb-4">⚠️</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Link Inválido
+            </h1>
+            <p className="text-gray-600">
+              O link de confirmação não é válido ou expirou. Por favor, contacte
+              a organização do evento.
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-          {/* Header do evento */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6">
-            <h1 className="text-3xl font-bold mb-2">{event.nome}</h1>
-            <div className="flex items-center space-x-4 text-blue-100">
-              <span className="flex items-center">
-                📅 {new Date(event.data).toLocaleDateString("pt-PT")}
-              </span>
-              <span className="flex items-center">🕐 {event.hora}</span>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-6 sm:py-12 px-4">
+      <div className="max-w-3xl mx-auto">
+        {/* Card principal do convite */}
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden transform hover:scale-[1.01] transition-transform duration-300">
+          {/* Banner decorativo com gradiente ou imagem */}
+          <div className="relative h-48 sm:h-64 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 overflow-hidden">
+            {/* Imagem de fundo do evento (se existir) */}
+            {event.imagem_url && (
+              <div className="absolute inset-0">
+                <img
+                  src={event.imagem_url}
+                  alt={event.nome}
+                  className="w-full h-full object-cover"
+                />
+                {/* Overlay escuro para melhorar legibilidade do texto */}
+                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/60"></div>
+              </div>
+            )}
+
+            {/* Padrão decorativo (só aparece se não houver imagem) */}
+            {!event.imagem_url && (
+              <>
+                <div className="absolute inset-0 opacity-10">
+                  <svg
+                    className="w-full h-full"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      <pattern
+                        id="pattern"
+                        x="0"
+                        y="0"
+                        width="40"
+                        height="40"
+                        patternUnits="userSpaceOnUse"
+                      >
+                        <circle cx="20" cy="20" r="2" fill="white" />
+                      </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#pattern)" />
+                  </svg>
+                </div>
+
+                {/* Círculos decorativos */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full -ml-24 -mb-24"></div>
+              </>
+            )}
+
+            {/* Conteúdo do banner */}
+            <div className="relative h-full flex flex-col items-center justify-center text-white px-6 text-center">
+              {!event.imagem_url && (
+                <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-full p-4 mb-4 animate-pulse">
+                  <span className="text-5xl sm:text-6xl">🎉</span>
+                </div>
+              )}
+              <h1 className="text-3xl sm:text-4xl font-bold mb-2 drop-shadow-lg">
+                {event.nome}
+              </h1>
+              <div className="flex flex-wrap items-center justify-center gap-4 text-sm sm:text-base text-blue-100">
+                <span className="flex items-center gap-1 bg-white bg-opacity-20 px-3 py-1 rounded-full backdrop-blur-sm">
+                  <span>📅</span>
+                  {new Date(event.data).toLocaleDateString("pt-PT", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </span>
+                <span className="flex items-center gap-1 bg-white bg-opacity-20 px-3 py-1 rounded-full backdrop-blur-sm">
+                  <span>🕐</span>
+                  {formatTime(event.hora)}
+                </span>
+              </div>
+              <p className="mt-3 flex items-center gap-1 text-sm sm:text-base text-blue-100">
+                <span>📍</span>
+                {event.local}
+              </p>
             </div>
-            <p className="mt-2 flex items-center text-blue-100">
-              📍 {event.local}
-            </p>
           </div>
 
-          {/* Informações do convidado */}
-          <div className="p-6">
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-100 rounded-full mb-4">
-                <span className="text-3xl">👤</span>
+          {/* Conteúdo do convite */}
+          <div className="p-6 sm:p-8">
+            {/* Informações do convidado */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full mb-4 shadow-lg">
+                <span className="text-4xl">👤</span>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">{guest.nome}</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                {guest.nome}
+              </h2>
               {guest.mesa ? (
-                <p className="text-lg text-gray-600 mt-2">Mesa {guest.mesa}</p>
+                <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2 rounded-full">
+                  <span className="text-xl">🪑</span>
+                  <span className="font-semibold text-blue-900">
+                    Mesa {guest.mesa}
+                  </span>
+                </div>
               ) : (
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-sm text-gray-500 max-w-md mx-auto">
                   A sua mesa será atribuída pela organização após a confirmação.
                 </p>
               )}
             </div>
 
-            {!confirmed ? (
+            {!confirmed && !rejected ? (
+              /* Estado: Aguarda confirmação */
               <div className="text-center">
-                <p className="text-gray-600 mb-6">
-                  Por favor, confirme a sua presença no evento clicando no botão
-                  abaixo.
-                </p>
-                <button
-                  onClick={handleConfirm}
-                  disabled={loading}
-                  className="bg-green-600 text-white px-8 py-3 rounded-lg text-lg font-medium hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
-                  {loading ? "A confirmar..." : "✓ Confirmar Presença"}
-                </button>
-              </div>
-            ) : (
-              <div className="text-center">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                  <p className="text-green-800 font-medium flex items-center justify-center">
-                    <span className="text-2xl mr-2">✓</span>
-                    Presença Confirmada!
+                <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-xl p-6 mb-6">
+                  <p className="text-gray-700 mb-6 leading-relaxed">
+                    Será uma honra contar com a sua presença! Por favor,
+                    confirme ou rejeite o convite clicando num dos botões
+                    abaixo.
                   </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button
+                      onClick={handleConfirm}
+                      disabled={loading}
+                      className="group relative inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                    >
+                      <span className="text-2xl">✓</span>
+                      <span>
+                        {loading ? "A confirmar..." : "Confirmar Presença"}
+                      </span>
+                    </button>
+                    <button
+                      onClick={handleReject}
+                      disabled={loading}
+                      className="group relative inline-flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-red-600 hover:to-rose-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                    >
+                      <span className="text-2xl">✗</span>
+                      <span>
+                        {loading ? "A processar..." : "Não Posso Comparecer"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : confirmed ? (
+              /* Estado: Confirmado */
+              <div className="space-y-6">
+                {/* Mensagem de confirmação */}
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6 text-center">
+                  <div className="inline-flex items-center justify-center gap-2 text-green-700 font-bold text-xl mb-2">
+                    <span className="text-3xl animate-bounce">✓</span>
+                    <span>Presença Confirmada!</span>
+                  </div>
+                  <p className="text-green-600 mb-4">
+                    Obrigado por confirmar a sua presença!
+                  </p>
+                  <button
+                    onClick={handleReject}
+                    disabled={loading}
+                    className="text-sm text-red-600 hover:text-red-700 underline"
+                  >
+                    Alterar resposta (não posso comparecer)
+                  </button>
                 </div>
 
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Seu QR Code para Check-in
-                  </h3>
+                {/* QR Code */}
+                <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-6 sm:p-8 border border-gray-200">
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <span className="text-2xl">📱</span>
+                    <h3 className="text-xl font-bold text-gray-900">
+                      Seu QR Code para Check-in
+                    </h3>
+                  </div>
 
-                  <div ref={qrRef} className="flex justify-center mb-4">
-                    <div className="p-4 bg-white rounded-lg shadow-md">
+                  <div ref={qrRef} className="flex justify-center mb-6">
+                    <div className="bg-white p-6 rounded-2xl shadow-xl border-4 border-blue-100">
                       <QRCodeCanvas
                         value={qrData}
                         size={200}
@@ -227,16 +377,17 @@ function Confirm() {
                     </div>
                   </div>
 
-                  <p className="text-sm text-gray-600 mb-4">
-                    Apresente este QR Code na entrada do evento
+                  <p className="text-center text-gray-600 mb-4 text-sm sm:text-base">
+                    Apresente este QR Code na entrada do evento para fazer
+                    check-in rapidamente
                   </p>
 
                   <button
                     onClick={downloadQRCode}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="w-full sm:w-auto mx-auto flex items-center justify-center gap-2 px-6 py-3 border-2 border-blue-300 rounded-xl text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 font-medium"
                   >
                     <svg
-                      className="w-5 h-5 mr-2"
+                      className="w-5 h-5"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -252,20 +403,77 @@ function Confirm() {
                   </button>
                 </div>
 
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">
-                    Informações importantes:
-                  </h4>
-                  <ul className="text-sm text-blue-700 space-y-1">
-                    <li>• Guarde este QR Code no seu telemóvel</li>
-                    <li>• Apresente-o na entrada do evento</li>
-                    <li>• Cada QR Code é único e intransmissível</li>
-                  </ul>
+                {/* Instruções */}
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl flex-shrink-0">💡</span>
+                    <div>
+                      <h4 className="font-bold text-blue-900 mb-3 text-lg">
+                        Informações importantes:
+                      </h4>
+                      <ul className="space-y-2 text-blue-700">
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-500 font-bold">•</span>
+                          <span>
+                            Guarde este QR Code no seu telemóvel ou imprima-o
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-500 font-bold">•</span>
+                          <span>
+                            Apresente-o na entrada para agilizar o check-in
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-500 font-bold">•</span>
+                          <span>Cada QR Code é único e intransmissível</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-500 font-bold">•</span>
+                          <span>
+                            Em caso de dúvidas, contacte a organização
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Estado: Rejeitado */
+              <div className="space-y-6">
+                <div className="bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-200 rounded-xl p-6 text-center">
+                  <div className="inline-flex items-center justify-center gap-2 text-red-700 font-bold text-xl mb-2">
+                    <span className="text-3xl">✗</span>
+                    <span>Presença Não Confirmada</span>
+                  </div>
+                  <p className="text-red-600 mb-4">
+                    Lamentamos que não possa estar presente!
+                  </p>
+                  <button
+                    onClick={handleConfirm}
+                    disabled={loading}
+                    className="text-sm text-green-600 hover:text-green-700 underline"
+                  >
+                    Alterar resposta (confirmar presença)
+                  </button>
+                </div>
+
+                <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-6 border border-gray-200 text-center">
+                  <p className="text-gray-600">
+                    Caso mude de ideias, pode alterar a sua resposta a qualquer
+                    momento clicando no botão acima.
+                  </p>
                 </div>
               </div>
             )}
           </div>
         </div>
+
+        {/* Créditos */}
+        <p className="text-center text-gray-500 text-sm mt-6">
+          Gestor de Eventos UTAD © {new Date().getFullYear()}
+        </p>
       </div>
     </div>
   );
