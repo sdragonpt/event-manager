@@ -97,6 +97,8 @@ function Confirm() {
 
       setEvent(eventData);
 
+      setAccentColor(eventData.accent_color || "#1e40af");
+
       // Gerar dados do QR code
       const qrString = JSON.stringify({
         id: guestData.id,

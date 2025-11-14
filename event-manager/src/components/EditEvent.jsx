@@ -26,9 +26,10 @@ function EditEvent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Quando a imagem é carregada no preview, extrair cor
+  // Quando a imagem é carregada no preview A PARTIR DE UM NOVO FICHEIRO,
+  // extrair cor automaticamente
   useEffect(() => {
-    if (!imagePreview) return;
+    if (!imagePreview || !imageFile) return;
 
     const img = new Image();
     img.src = imagePreview;
@@ -64,7 +65,7 @@ function EditEvent() {
         console.log("Erro ao extrair cor:", e);
       }
     };
-  }, [imagePreview]);
+  }, [imagePreview, imageFile]);
 
   const loadEvent = async () => {
     try {
