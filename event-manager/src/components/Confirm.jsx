@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import toast from "react-hot-toast";
 
 function Confirm() {
+  const [watchingTable, setWatchingTable] = useState(false);
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [guest, setGuest] = useState(null);
@@ -17,6 +18,49 @@ function Confirm() {
   useEffect(() => {
     loadGuestData();
   }, []);
+
+  useEffect(() => {
+    // só faz sentido “espiar” se:
+    // - já temos o convidado
+    // - ele já confirmou (está a ver o QR)
+    if (!guest || !confirmed) return;
+
+    // se ele já tem mesa e check-in, não precisamos de intervalos
+    if (guest.checkin && guest.mesa) return;
+
+    setWatchingTable(true);
+
+    const interval = setInterval(async () => {
+      try {
+        const { data, error } = await supabase
+          .from("convidados")
+          .select("id, mesa, checkin")
+          .eq("id", guest.id)
+          .single();
+
+        if (error) {
+          console.error("Erro a verificar mesa:", error);
+          return;
+        }
+
+        // quando o check-in estiver feito e a mesa atribuída,
+        // atualizamos o estado e a página muda automaticamente
+        if (data?.checkin && data?.mesa) {
+          clearInterval(interval);
+          setGuest((prev) => ({
+            ...prev,
+            mesa: data.mesa,
+            checkin: data.checkin,
+          }));
+        }
+      } catch (err) {
+        console.error("Erro inesperado a verificar mesa:", err);
+      }
+    }, 3000); // 3 segundos
+
+    // limpar intervalo quando o componente desmontar ou dependências mudarem
+    return () => clearInterval(interval);
+  }, [guest, confirmed, setGuest]);
 
   const loadGuestData = async () => {
     const guestId = searchParams.get("id");
@@ -337,108 +381,133 @@ function Confirm() {
                 </div>
               </div>
             ) : confirmed ? (
-              /* Estado: Confirmado */
-              <div className="space-y-6">
-                {/* Mensagem de confirmação */}
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6 text-center">
-                  <div className="inline-flex items-center justify-center gap-2 text-green-700 font-bold text-xl mb-2">
-                    <span className="text-3xl animate-bounce">✓</span>
-                    <span>Presença Confirmada!</span>
-                  </div>
-                  <p className="text-green-600 mb-4">
-                    Obrigado por confirmar a sua presença!
-                  </p>
-                  <button
-                    onClick={handleReject}
-                    disabled={loading}
-                    className="text-sm text-red-600 hover:text-red-700 underline"
-                  >
-                    Alterar resposta (não posso comparecer)
-                  </button>
-                </div>
-
-                {/* QR Code */}
-                <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-6 sm:p-8 border border-gray-200">
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    <span className="text-2xl">📱</span>
-                    <h3 className="text-xl font-bold text-gray-900">
-                      Seu QR Code para Check-in
-                    </h3>
-                  </div>
-
-                  <div ref={qrRef} className="flex justify-center mb-6">
-                    <div className="bg-white p-6 rounded-2xl shadow-xl border-4 border-blue-100">
-                      <QRCodeCanvas
-                        value={qrData}
-                        size={200}
-                        level="H"
-                        includeMargin={true}
-                      />
+              guest.checkin && guest.mesa ? (
+                /* Estado: Confirmado + Check-in feito → mostrar mesa em vez do QR */
+                <div className="space-y-6">
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6 text-center">
+                    <div className="inline-flex items-center justify-center gap-2 text-green-700 font-bold text-xl mb-2">
+                      <span className="text-3xl">🎉</span>
+                      <span>Check-in efetuado com sucesso!</span>
                     </div>
+                    <p className="text-green-700 mb-2">
+                      Obrigado por fazer o check-in à entrada.
+                    </p>
+                    <p className="text-gray-700 mb-1">
+                      A sua mesa para o evento:
+                    </p>
+                    <p className="text-4xl font-extrabold text-green-900 mb-3">
+                      Mesa {guest.mesa}
+                    </p>
+                    <p className="text-xs text-gray-500 max-w-xs mx-auto">
+                      Mostre esta página à organização se precisar de ajuda a
+                      encontrar a mesa.
+                    </p>
                   </div>
-
-                  <p className="text-center text-gray-600 mb-4 text-sm sm:text-base">
-                    Apresente este QR Code na entrada do evento para fazer
-                    check-in rapidamente
-                  </p>
-
-                  <button
-                    onClick={downloadQRCode}
-                    className="w-full sm:w-auto mx-auto flex items-center justify-center gap-2 px-6 py-3 border-2 border-blue-300 rounded-xl text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 font-medium"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                </div>
+              ) : (
+                /* Estado: Confirmado mas ainda sem check-in/mesa → mostra QR */
+                <div className="space-y-6">
+                  {/* Mensagem de confirmação */}
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6 text-center">
+                    <div className="inline-flex items-center justify-center gap-2 text-green-700 font-bold text-xl mb-2">
+                      <span className="text-3xl animate-bounce">✓</span>
+                      <span>Presença Confirmada!</span>
+                    </div>
+                    <p className="text-green-600 mb-4">
+                      Obrigado por confirmar a sua presença!
+                    </p>
+                    <button
+                      onClick={handleReject}
+                      disabled={loading}
+                      className="text-sm text-red-600 hover:text-red-700 underline"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                      />
-                    </svg>
-                    Descarregar QR Code
-                  </button>
-                </div>
+                      Alterar resposta (não posso comparecer)
+                    </button>
+                  </div>
 
-                {/* Instruções */}
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl flex-shrink-0">💡</span>
-                    <div>
-                      <h4 className="font-bold text-blue-900 mb-3 text-lg">
-                        Informações importantes:
-                      </h4>
-                      <ul className="space-y-2 text-blue-700">
-                        <li className="flex items-start gap-2">
-                          <span className="text-blue-500 font-bold">•</span>
-                          <span>
-                            Guarde este QR Code no seu telemóvel ou imprima-o
-                          </span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-blue-500 font-bold">•</span>
-                          <span>
-                            Apresente-o na entrada para agilizar o check-in
-                          </span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-blue-500 font-bold">•</span>
-                          <span>Cada QR Code é único e intransmissível</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-blue-500 font-bold">•</span>
-                          <span>
-                            Em caso de dúvidas, contacte a organização
-                          </span>
-                        </li>
-                      </ul>
+                  {/* QR Code */}
+                  <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-6 sm:p-8 border border-gray-200">
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      <span className="text-2xl">📱</span>
+                      <h3 className="text-xl font-bold text-gray-900">
+                        O seu QR Code para Check-in
+                      </h3>
+                    </div>
+
+                    <div ref={qrRef} className="flex justify-center mb-6">
+                      <div className="bg-white p-6 rounded-2xl shadow-xl border-4 border-blue-100">
+                        <QRCodeCanvas
+                          value={qrData}
+                          size={200}
+                          level="H"
+                          includeMargin={true}
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-center text-gray-600 mb-4 text-sm sm:text-base">
+                      Apresente este QR Code na entrada do evento para fazer
+                      check-in rapidamente.
+                    </p>
+
+                    <button
+                      onClick={downloadQRCode}
+                      className="w-full sm:w-auto mx-auto flex items-center justify-center gap-2 px-6 py-3 border-2 border-blue-300 rounded-xl text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 font-medium"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                        />
+                      </svg>
+                      Descarregar QR Code
+                    </button>
+                  </div>
+
+                  {/* Instruções */}
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl flex-shrink-0">💡</span>
+                      <div>
+                        <h4 className="font-bold text-blue-900 mb-3 text-lg">
+                          Informações importantes:
+                        </h4>
+                        <ul className="space-y-2 text-blue-700">
+                          <li className="flex items-start gap-2">
+                            <span className="text-blue-500 font-bold">•</span>
+                            <span>
+                              Guarde este QR Code no seu telemóvel ou imprima-o
+                            </span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-blue-500 font-bold">•</span>
+                            <span>
+                              Apresente-o na entrada para agilizar o check-in
+                            </span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-blue-500 font-bold">•</span>
+                            <span>Cada QR Code é único e intransmissível</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-blue-500 font-bold">•</span>
+                            <span>
+                              Em caso de dúvidas, contacte a organização
+                            </span>
+                          </li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )
             ) : (
               /* Estado: Rejeitado */
               <div className="space-y-6">
