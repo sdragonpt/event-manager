@@ -18,12 +18,53 @@ function EditEvent() {
     hora: "",
     local: "",
     imagem_url: "",
+    accent_color: "#1e40af", // azul padrão
   });
 
   useEffect(() => {
     loadEvent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Quando a imagem é carregada no preview, extrair cor
+  useEffect(() => {
+    if (!imagePreview) return;
+
+    const img = new Image();
+    img.src = imagePreview;
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        const data = ctx.getImageData(0, 0, img.width, img.height).data;
+
+        let r = 0,
+          g = 0,
+          b = 0,
+          count = 0;
+        for (let i = 0; i < data.length; i += 40) {
+          r += data[i];
+          g += data[i + 1];
+          b += data[i + 2];
+          count++;
+        }
+
+        const toHex = (v) => v.toString(16).padStart(2, "0");
+        const hex = `#${toHex((r / count) | 0)}${toHex((g / count) | 0)}${toHex(
+          (b / count) | 0
+        )}`;
+
+        setFormData((prev) => ({ ...prev, accent_color: hex }));
+      } catch (e) {
+        console.log("Erro ao extrair cor:", e);
+      }
+    };
+  }, [imagePreview]);
 
   const loadEvent = async () => {
     try {
@@ -41,6 +82,7 @@ function EditEvent() {
         hora: data.hora || "",
         local: data.local || "",
         imagem_url: data.imagem_url || "",
+        accent_color: data.accent_color || "#1e40af",
       });
 
       setImagePreview(data.imagem_url || null);
@@ -158,6 +200,7 @@ function EditEvent() {
           hora: formData.hora,
           local: formData.local,
           imagem_url,
+          accent_color: formData.accent_color,
         })
         .eq("id", id);
 
@@ -258,6 +301,36 @@ function EditEvent() {
                 </button>
               </div>
             )}
+          </div>
+
+          {/* Escolher cor do convite */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Cor do Convite
+            </label>
+
+            <div className="flex items-center gap-4">
+              <input
+                type="color"
+                value={formData.accent_color}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    accent_color: e.target.value,
+                  }))
+                }
+                className="w-12 h-12 rounded-md cursor-pointer border border-gray-300 shadow-sm"
+              />
+
+              <div
+                className="w-14 h-14 rounded-lg border"
+                style={{ backgroundColor: formData.accent_color }}
+              ></div>
+            </div>
+
+            <p className="text-xs text-gray-500 mt-2">
+              Esta cor será usada como cor principal do convite.
+            </p>
           </div>
 
           {/* Nome */}
