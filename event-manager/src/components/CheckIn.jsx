@@ -253,18 +253,19 @@ function CheckIn() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4">
+    <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4">
       {/* Seletor de Evento */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">
+      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             Check-in de Convidados
           </h1>
+
           {events.length > 0 && (
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full md:w-auto px-3 py-2 border border-gray-300 rounded-md text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Selecione um evento</option>
               {events.map((event) => (
@@ -278,98 +279,124 @@ function CheckIn() {
         </div>
 
         {/* Estatísticas */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-blue-50 rounded-lg p-4 text-center">
-            <p className="text-3xl font-bold text-blue-600">{stats.total}</p>
-            <p className="text-sm text-gray-600">Total Convidados</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div className="bg-blue-50 rounded-lg p-3 sm:p-4 text-center">
+            <p className="text-2xl sm:text-3xl font-bold text-blue-600">
+              {stats.total}
+            </p>
+            <p className="text-xs sm:text-sm text-gray-600">Total Convidados</p>
           </div>
-          <div className="bg-yellow-50 rounded-lg p-4 text-center">
-            <p className="text-3xl font-bold text-yellow-600">
+          <div className="bg-yellow-50 rounded-lg p-3 sm:p-4 text-center">
+            <p className="text-2xl sm:text-3xl font-bold text-yellow-600">
               {stats.confirmados}
             </p>
-            <p className="text-sm text-gray-600">Confirmados</p>
+            <p className="text-xs sm:text-sm text-gray-600">Confirmados</p>
           </div>
-          <div className="bg-green-50 rounded-lg p-4 text-center">
-            <p className="text-3xl font-bold text-green-600">
+          <div className="bg-green-50 rounded-lg p-3 sm:p-4 text-center">
+            <p className="text-2xl sm:text-3xl font-bold text-green-600">
               {stats.presentes}
             </p>
-            <p className="text-sm text-gray-600">Presentes</p>
+            <p className="text-xs sm:text-sm text-gray-600">Presentes</p>
           </div>
         </div>
+
+        {selectedEventId && (
+          <p className="text-xs sm:text-sm text-gray-500">
+            Estatísticas referentes ao evento selecionado.
+          </p>
+        )}
       </div>
 
       {selectedEventId && (
         <>
           {/* Scanner de QR Code */}
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
               Scanner QR Code
             </h2>
 
-            <div className="text-center mb-4">
-              {!isScanning ? (
-                <button
-                  onClick={startScanner}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg text-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition"
-                >
-                  📷 Iniciar Scanner
-                </button>
-              ) : (
-                <button
-                  onClick={stopScanner}
-                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition"
-                >
-                  Parar Scanner
-                </button>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
+              <div className="flex-1 text-center">
+                {!isScanning ? (
+                  <button
+                    onClick={startScanner}
+                    className="w-full sm:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-md text-sm sm:text-base font-medium shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition"
+                  >
+                    📷 Iniciar Scanner
+                  </button>
+                ) : (
+                  <button
+                    onClick={stopScanner}
+                    className="w-full sm:w-auto bg-red-600 text-white px-5 py-2.5 rounded-md text-sm sm:text-base font-medium shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition"
+                  >
+                    Parar Scanner
+                  </button>
+                )}
+              </div>
+
+              {stats && (
+                <p className="text-xs sm:text-sm text-gray-500 text-center sm:text-right">
+                  Aproxime o QR code da câmara. Após um check-in com sucesso, o
+                  próximo scan começa automaticamente passados 3 segundos.
+                </p>
               )}
             </div>
 
-            {/* Este div passa a existir SEMPRE no DOM */}
+            {/* Div do QR Reader */}
             <div
               id="qr-reader"
-              className="mx-auto"
-              style={{ maxWidth: "500px", width: "100%" }}
+              className="mx-auto w-full max-w-xs sm:max-w-sm md:max-w-md rounded-lg overflow-hidden"
+              style={{ minHeight: "260px" }}
             ></div>
 
             {/* Último check-in */}
             {lastCheckin && (
               <div
-                className={`mt-6 p-4 rounded-lg ${
+                className={`mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 rounded-lg p-4 border ${
                   lastCheckin.alreadyCheckedIn
                     ? "bg-yellow-50 border-yellow-200"
                     : "bg-green-50 border-green-200"
-                } border`}
+                }`}
               >
-                <p className="font-medium text-gray-900 text-lg">
-                  {lastCheckin.alreadyCheckedIn ? "⚠️" : "✅"}{" "}
-                  {lastCheckin.nome}
-                </p>
-                <p className="text-gray-600">Mesa {lastCheckin.mesa}</p>
-                {lastCheckin.alreadyCheckedIn && (
-                  <p className="text-sm text-yellow-700 mt-1">
-                    Já tinha feito check-in anteriormente
+                <div>
+                  <p className="font-semibold text-gray-900">
+                    {lastCheckin.nome}
                   </p>
-                )}
+                  <p className="text-sm text-gray-600">
+                    Mesa {lastCheckin.mesa}
+                  </p>
+                  {lastCheckin.alreadyCheckedIn && (
+                    <p className="text-xs sm:text-sm text-yellow-700 mt-1">
+                      Já tinha feito check-in anteriormente.
+                    </p>
+                  )}
+                </div>
+                <div className="text-xs sm:text-sm text-gray-500">
+                  Último registo atualizado.
+                </div>
               </div>
             )}
           </div>
 
           {/* Check-in Manual */}
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
               Check-in Manual
             </h2>
-            <form onSubmit={handleManualCheckIn} className="flex gap-2">
+            <form
+              onSubmit={handleManualCheckIn}
+              className="flex flex-col sm:flex-row gap-2"
+            >
               <input
                 type="text"
                 value={manualCheckIn}
                 onChange={(e) => setManualCheckIn(e.target.value)}
                 placeholder="Nome ou email do convidado"
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="submit"
-                className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                className="w-full sm:w-auto bg-green-600 text-white px-5 py-2.5 rounded-md text-sm sm:text-base font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition"
               >
                 Check-in
               </button>
@@ -377,22 +404,26 @@ function CheckIn() {
           </div>
 
           {/* Histórico de Check-ins */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
               Últimos Check-ins
             </h2>
             {checkinHistory.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-80 overflow-y-auto">
                 {checkinHistory.map((guest) => (
                   <div
                     key={guest.id}
-                    className="flex justify-between items-center py-2 border-b"
+                    className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-0 py-2 border-b"
                   >
                     <div>
-                      <p className="font-medium text-gray-900">{guest.nome}</p>
-                      <p className="text-sm text-gray-600">Mesa {guest.mesa}</p>
+                      <p className="font-medium text-gray-900 text-sm sm:text-base">
+                        {guest.nome}
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-600">
+                        Mesa {guest.mesa}
+                      </p>
                     </div>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-xs sm:text-sm text-gray-500">
                       {new Date(guest.updated_at).toLocaleTimeString("pt-PT", {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -402,7 +433,7 @@ function CheckIn() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-4">
+              <p className="text-gray-500 text-center py-4 text-sm">
                 Nenhum check-in realizado ainda
               </p>
             )}
