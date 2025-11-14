@@ -333,18 +333,6 @@ function Confirm() {
               <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
                 {guest.nome}
               </h2>
-              {guest.mesa ? (
-                <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2 rounded-full">
-                  <span className="text-xl">🪑</span>
-                  <span className="font-semibold text-blue-900">
-                    Mesa {guest.mesa}
-                  </span>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500 max-w-md mx-auto">
-                  A sua mesa será atribuída pela organização após a confirmação.
-                </p>
-              )}
             </div>
 
             {!confirmed && !rejected ? (
