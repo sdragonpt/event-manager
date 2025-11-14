@@ -287,9 +287,7 @@ function Confirm() {
     <div
       className="min-h-screen flex items-center justify-center px-4 py-8"
       style={{
-        background: event?.imagem_url
-          ? `radial-gradient(circle at top, ${accentColor}33, #020617 55%)`
-          : `linear-gradient(135deg, ${accentColor}66, #020617)`,
+        backgroundColor: accentColor || "#0f172a",
       }}
     >
       <div className="max-w-3xl w-full bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl overflow-hidden border border-white/40">
