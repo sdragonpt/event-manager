@@ -16,7 +16,9 @@ function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState("table"); // 'table' ou 'cards' para mobile
+  const [viewMode, setViewMode] = useState("table");
+  const [editingGuest, setEditingGuest] = useState(null);
+  const [editForm, setEditForm] = useState({ nome: "", email: "", mesa: "" });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -138,6 +140,61 @@ function Dashboard() {
     }
   };
 
+  const openEditModal = (guest) => {
+    setEditingGuest(guest);
+    setEditForm({
+      nome: guest.nome,
+      email: guest.email,
+      mesa: guest.mesa || "",
+    });
+  };
+
+  const closeEditModal = () => {
+    setEditingGuest(null);
+    setEditForm({ nome: "", email: "", mesa: "" });
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!editForm.nome.trim()) {
+      toast.error("Nome é obrigatório");
+      return;
+    }
+
+    if (!editForm.email.trim()) {
+      toast.error("Email é obrigatório");
+      return;
+    }
+
+    // Validação simples de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editForm.email)) {
+      toast.error("Email inválido");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("convidados")
+        .update({
+          nome: editForm.nome.trim(),
+          email: editForm.email.trim(),
+          mesa: editForm.mesa.trim() || null,
+        })
+        .eq("id", editingGuest.id);
+
+      if (error) throw error;
+
+      toast.success("Convidado atualizado com sucesso");
+      closeEditModal();
+      loadEventData();
+    } catch (error) {
+      console.error("Erro ao atualizar convidado:", error);
+      toast.error("Erro ao atualizar convidado: " + error.message);
+    }
+  };
+
   const deleteGuest = async (guestId) => {
     if (!window.confirm("Tem a certeza que deseja remover este convidado?"))
       return;
@@ -209,7 +266,6 @@ function Dashboard() {
       (guest.mesa && guest.mesa.toString().includes(searchTerm))
   );
 
-  // Formatar hora sem segundos
   const formatTime = (timeString) => {
     if (!timeString) return "";
     const [hours, minutes] = timeString.split(":");
@@ -218,10 +274,10 @@ function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="max-w-7xl mx-auto px-4 flex items-center justify-center min-h-[50vh]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">A carregar...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600">A carregar...</p>
         </div>
       </div>
     );
@@ -229,15 +285,38 @@ function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4">
-      {/* Cabeçalho e Seletor de Evento */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          {events.length > 0 && (
+      {events.length > 0 && (
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+              Dashboard
+            </h1>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                onClick={() =>
+                  navigate("/eventos/" + selectedEvent.id + "/editar")
+                }
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-md hover:shadow-lg"
+              >
+                ✏️ Editar Evento
+              </button>
+              <button
+                onClick={exportToCSV}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium shadow-md hover:shadow-lg"
+              >
+                📥 Exportar CSV
+              </button>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Selecionar Evento
+            </label>
             <select
               value={selectedEvent?.id || ""}
               onChange={(e) => handleEventChange(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 font-medium"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {events.map((event) => (
                 <option key={event.id} value={event.id}>
@@ -247,38 +326,15 @@ function Dashboard() {
                 </option>
               ))}
             </select>
-          )}
-        </div>
+          </div>
 
-        {selectedEvent && (
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg overflow-hidden border border-blue-200">
-            {selectedEvent.imagem_url && (
-              <div className="relative h-48 overflow-hidden">
-                <img
-                  src={selectedEvent.imagem_url}
-                  alt={selectedEvent.nome}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 to-transparent"></div>
-                <div className="absolute bottom-4 left-4 right-4 text-white">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-2xl">📅</span>
-                    <h2 className="text-xl font-bold">{selectedEvent.nome}</h2>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="p-4">
-              {!selectedEvent.imagem_url && (
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-2xl">📅</span>
-                  <h2 className="text-xl font-bold text-blue-900">
-                    {selectedEvent.nome}
-                  </h2>
-                </div>
-              )}
-              <p className="text-blue-700">
-                <span className="font-medium">Data:</span>{" "}
+          {selectedEvent && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+              <h2 className="text-lg font-bold text-blue-900 mb-2">
+                {selectedEvent.nome}
+              </h2>
+              <p className="text-sm text-blue-700">
+                📅{" "}
                 {new Date(selectedEvent.data).toLocaleDateString("pt-PT", {
                   day: "numeric",
                   month: "long",
@@ -286,90 +342,90 @@ function Dashboard() {
                 })}{" "}
                 às {formatTime(selectedEvent.hora)}
               </p>
-              <p className="text-blue-700">
-                <span className="font-medium">Local:</span>{" "}
-                {selectedEvent.local}
-              </p>
+              <p className="text-sm text-blue-700">📍 {selectedEvent.local}</p>
+            </div>
+          )}
 
-              {/* Botão para editar o evento */}
-              <button
-                onClick={() => navigate(`/eventos/${selectedEvent.id}/editar`)}
-                className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-              >
-                ✏️ Editar evento
-              </button>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4 mb-6">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+              <p className="text-xs sm:text-sm font-medium text-blue-600 mb-1">
+                Total
+              </p>
+              <p className="text-2xl sm:text-3xl font-bold text-blue-900">
+                {stats.total}
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+              <p className="text-xs sm:text-sm font-medium text-green-600 mb-1">
+                Confirmados
+              </p>
+              <p className="text-2xl sm:text-3xl font-bold text-green-900">
+                {stats.confirmados}
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-4 rounded-lg border border-yellow-200">
+              <p className="text-xs sm:text-sm font-medium text-yellow-600 mb-1">
+                Pendentes
+              </p>
+              <p className="text-2xl sm:text-3xl font-bold text-yellow-900">
+                {stats.pendentes}
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-lg border border-red-200">
+              <p className="text-xs sm:text-sm font-medium text-red-600 mb-1">
+                Rejeitados
+              </p>
+              <p className="text-2xl sm:text-3xl font-bold text-red-900">
+                {stats.rejeitados}
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200 col-span-2 sm:col-span-1">
+              <p className="text-xs sm:text-sm font-medium text-purple-600 mb-1">
+                Presentes
+              </p>
+              <p className="text-2xl sm:text-3xl font-bold text-purple-900">
+                {stats.presentes}
+              </p>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Estatísticas */}
-      {selectedEvent && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow-md p-4 text-center hover:shadow-lg transition">
-            <p className="text-3xl font-bold text-blue-600">{stats.total}</p>
-            <p className="text-sm text-gray-600 mt-1">Total</p>
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="🔍 Pesquisar por nome, email ou mesa..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+            />
           </div>
-          <div className="bg-white rounded-xl shadow-md p-4 text-center hover:shadow-lg transition">
-            <p className="text-3xl font-bold text-green-600">
-              {stats.confirmados}
-            </p>
-            <p className="text-sm text-gray-600 mt-1">Confirmados</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-4 text-center hover:shadow-lg transition">
-            <p className="text-3xl font-bold text-red-600">
-              {stats.rejeitados}
-            </p>
-            <p className="text-sm text-gray-600 mt-1">Rejeitados</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-4 text-center hover:shadow-lg transition">
-            <p className="text-3xl font-bold text-purple-600">
-              {stats.presentes}
-            </p>
-            <p className="text-sm text-gray-600 mt-1">Presentes</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-4 text-center hover:shadow-lg transition">
-            <p className="text-3xl font-bold text-yellow-600">
-              {stats.pendentes}
-            </p>
-            <p className="text-sm text-gray-600 mt-1">Pendentes</p>
-          </div>
-        </div>
-      )}
 
-      {/* Lista de Convidados */}
-      {selectedEvent && (
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Convidados</h2>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="text"
-                placeholder="Pesquisar..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+          <div className="flex justify-end mb-4 sm:hidden">
+            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
               <button
-                onClick={exportToCSV}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition font-medium"
+                onClick={() => setViewMode("cards")}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition ${
+                  viewMode === "cards"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-600"
+                }`}
               >
-                📥 Exportar CSV
+                📋 Cards
               </button>
               <button
-                onClick={() =>
-                  setViewMode(viewMode === "table" ? "cards" : "table")
-                }
-                className="sm:hidden px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                onClick={() => setViewMode("table")}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition ${
+                  viewMode === "table"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-600"
+                }`}
               >
-                {viewMode === "table" ? "📱 Vista Cartões" : "📋 Vista Tabela"}
+                📊 Tabela
               </button>
             </div>
           </div>
 
           {filteredGuests.length > 0 ? (
             <>
-              {/* Vista em Cartões para mobile */}
               <div
                 className={`${
                   viewMode === "cards" ? "block sm:hidden" : "hidden"
@@ -378,51 +434,63 @@ function Dashboard() {
                 {filteredGuests.map((guest) => (
                   <div
                     key={guest.id}
-                    className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                    className="bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-blue-300 transition"
                   >
                     <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <p className="font-semibold text-gray-900 text-lg">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900">
                           {guest.nome}
-                        </p>
+                        </h3>
                         <p className="text-sm text-gray-500">{guest.email}</p>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Mesa:{" "}
-                          <input
-                            type="text"
-                            defaultValue={guest.mesa || ""}
-                            onBlur={(e) => {
-                              const value = e.target.value.trim();
-                              if (value !== (guest.mesa || "")) {
-                                updateMesa(guest.id, value);
-                              }
-                            }}
-                            className="inline-block w-16 px-2 py-1 border border-gray-300 rounded text-sm"
-                            placeholder="-"
-                          />
-                        </p>
+                        {guest.mesa && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Mesa: {guest.mesa}
+                          </p>
+                        )}
                       </div>
-                      <button
-                        onClick={() => deleteGuest(guest.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                      <div className="flex space-x-1">
+                        <button
+                          onClick={() => openEditModal(guest)}
+                          className="text-blue-600 hover:text-blue-900 p-1"
+                          title="Editar"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => deleteGuest(guest.id)}
+                          className="text-red-600 hover:text-red-900 p-1"
+                          title="Remover"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex space-x-2 mb-3">
+                    <div className="flex space-x-2 mb-2">
                       <button
                         onClick={() =>
                           toggleConfirmation(guest.id, guest.confirmado)
@@ -431,7 +499,7 @@ function Dashboard() {
                           guest.confirmado
                             ? "bg-green-100 text-green-800"
                             : guest.rejeitado
-                            ? "bg-gray-100 text-gray-800"
+                            ? "bg-red-100 text-red-800"
                             : "bg-gray-100 text-gray-800"
                         }`}
                       >
@@ -469,7 +537,6 @@ function Dashboard() {
                 ))}
               </div>
 
-              {/* Vista em Tabela para desktop */}
               <div
                 className={`${
                   viewMode === "table" ? "block" : "hidden sm:block"
@@ -565,6 +632,25 @@ function Dashboard() {
                         <td className="px-4 py-3 text-center">
                           <div className="flex justify-center space-x-2">
                             <button
+                              onClick={() => openEditModal(guest)}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="Editar"
+                            >
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                />
+                              </svg>
+                            </button>
+                            <button
                               onClick={() =>
                                 navigator.clipboard
                                   .writeText(
@@ -644,6 +730,102 @@ function Dashboard() {
           >
             Criar Evento
           </a>
+        </div>
+      )}
+
+      {/* Modal de Edição */}
+      {editingGuest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-900">
+                Editar Convidado
+              </h3>
+              <button
+                onClick={closeEditModal}
+                className="text-gray-400 hover:text-gray-600 transition"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editForm.nome}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, nome: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Nome completo"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, email: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="email@exemplo.com"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mesa (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={editForm.mesa}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, mesa: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Número da mesa"
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-md hover:shadow-lg"
+                >
+                  Guardar
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

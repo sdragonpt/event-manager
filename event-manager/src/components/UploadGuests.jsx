@@ -85,13 +85,19 @@ function UploadGuests() {
   const parseCSV = (file) => {
     Papa.parse(file, {
       header: true,
+      delimiter: ";", // Aceitar ponto-e-vírgula como delimitador
+      skipEmptyLines: true,
+      encoding: "UTF-8",
       complete: (results) => {
         const validGuests = results.data
-          .filter((row) => row.nome && row.email)
+          .filter(
+            (row) =>
+              row.nome && row.email && row.nome.trim() && row.email.trim()
+          )
           .map((row) => ({
-            nome: row.nome,
-            email: row.email,
-            mesa: row.mesa || "", // pode vir vazio
+            nome: row.nome.trim(),
+            email: row.email.trim().split(";")[0].trim(), // Pegar apenas o primeiro email se houver múltiplos
+            mesa: row.mesa ? row.mesa.trim() : "", // Mesa é opcional
           }));
 
         setGuests(validGuests);
@@ -244,7 +250,7 @@ function UploadGuests() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Ficheiro CSV (colunas: nome, email, mesa opcional)
+                Ficheiro CSV (colunas: nome;email ou nome;email;mesa)
               </label>
               <input
                 type="file"
@@ -379,14 +385,17 @@ function UploadGuests() {
         <div className="flex">
           <div className="ml-3">
             <p className="text-sm font-medium text-blue-800 mb-2">
-              Formato do ficheiro CSV:
+              Formato do ficheiro CSV (com ponto-e-vírgula):
             </p>
             <pre className="text-xs text-blue-700 bg-white p-2 rounded">
-              {`nome,email,mesa
-João Silva,joao@email.com,1
-Maria Santos,maria@email.com,2
-Pedro Costa,pedro@email.com,1`}
+              {`nome;email;mesa
+João Silva;joao@email.com;1
+Maria Santos;maria@email.com;2
+Pedro Costa;pedro@email.com;1`}
             </pre>
+            <p className="text-xs text-blue-600 mt-2">
+              * A coluna "mesa" é opcional
+            </p>
           </div>
         </div>
       </div>
