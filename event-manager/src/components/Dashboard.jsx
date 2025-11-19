@@ -189,7 +189,9 @@ function Dashboard() {
 
         <tr>
           <td style="padding:24px 28px; font-size:15px; line-height:1.6; color:#111827;">
-            <p>Caro(a) ${nomeFormal},</p>
+            <p>Exmo.(a) Sr.(a) ${cargo},</p>
+            <p>${nome},</p>
+            <br>
             <p>
               É com grande prazer que convidamos V. Ex.ª para o evento
               <strong>${selectedEvent.nome}</strong>.
@@ -204,11 +206,6 @@ function Dashboard() {
             <p>
               Para confirmar a sua presença, utilize o seguinte link:<br/>
               <a href="${linkConfirmacao}" target="_blank">${linkConfirmacao}</a>
-            </p>
-
-            <p>
-              Com os melhores cumprimentos,<br/>
-              Universidade de Trás-os-Montes e Alto Douro
             </p>
 
             <p style="margin:2px 0;">
