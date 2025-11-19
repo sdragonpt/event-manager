@@ -131,10 +131,17 @@ function BulkEmailSender({ eventId, eventData, guests, onComplete }) {
 
     for (const guest of filteredGuests) {
       try {
+        // Nome formal → se tiver cargo = "Diretor João Silva"
+        const nomeFormal = guest.cargo
+          ? `${guest.cargo} ${guest.nome}`
+          : guest.nome;
+
         // Substituir variáveis no template
         const replacements = {
           "{{nome}}": guest.nome,
           "{{email}}": guest.email,
+          "{{cargo}}": guest.cargo || "",
+          "{{nome_formal}}": nomeFormal,
           "{{link}}": `${window.location.origin}/confirmar?id=${guest.id}`,
           "{{evento}}": eventData.nome,
           "{{data}}": new Date(eventData.data).toLocaleDateString("pt-PT", {

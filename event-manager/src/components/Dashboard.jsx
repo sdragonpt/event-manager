@@ -18,7 +18,12 @@ function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState("table");
   const [editingGuest, setEditingGuest] = useState(null);
-  const [editForm, setEditForm] = useState({ nome: "", email: "", mesa: "" });
+  const [editForm, setEditForm] = useState({
+    nome: "",
+    email: "",
+    mesa: "",
+    cargo: "",
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -146,12 +151,13 @@ function Dashboard() {
       nome: guest.nome,
       email: guest.email,
       mesa: guest.mesa || "",
+      cargo: guest.cargo || "",
     });
   };
 
   const closeEditModal = () => {
     setEditingGuest(null);
-    setEditForm({ nome: "", email: "", mesa: "" });
+    setEditForm({ nome: "", email: "", mesa: "", cargo: "" });
   };
 
   const handleEditSubmit = async (e) => {
@@ -181,6 +187,7 @@ function Dashboard() {
           nome: editForm.nome.trim(),
           email: editForm.email.trim(),
           mesa: editForm.mesa.trim() || null,
+          cargo: editForm.cargo.trim() || null,
         })
         .eq("id", editingGuest.id);
 
@@ -224,6 +231,7 @@ function Dashboard() {
     const headers = [
       "Nome",
       "Email",
+      "Cargo",
       "Mesa",
       "Confirmado",
       "Rejeitado",
@@ -232,7 +240,8 @@ function Dashboard() {
     const rows = guests.map((g) => [
       g.nome,
       g.email,
-      g.mesa,
+      g.cargo || "",
+      g.mesa || "",
       g.confirmado ? "Sim" : "Não",
       g.rejeitado ? "Sim" : "Não",
       g.checkin ? "Sim" : "Não",
@@ -263,7 +272,9 @@ function Dashboard() {
     (guest) =>
       guest.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
       guest.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (guest.mesa && guest.mesa.toString().includes(searchTerm))
+      (guest.mesa && guest.mesa.toString().includes(searchTerm)) ||
+      (guest.cargo &&
+        guest.cargo.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const formatTime = (timeString) => {
@@ -447,6 +458,9 @@ function Dashboard() {
                         <h3 className="font-semibold text-gray-900">
                           {guest.nome}
                         </h3>
+                        {guest.cargo && (
+                          <p className="text-xs text-gray-500">{guest.cargo}</p>
+                        )}
                         <p className="text-sm text-gray-500">{guest.email}</p>
                         {guest.mesa && (
                           <p className="text-xs text-gray-400 mt-1">
@@ -579,6 +593,11 @@ function Dashboard() {
                             <p className="text-sm font-medium text-gray-900">
                               {guest.nome}
                             </p>
+                            {guest.cargo && (
+                              <p className="text-xs text-gray-500">
+                                {guest.cargo}
+                              </p>
+                            )}
                             <p className="text-xs text-gray-500 md:hidden">
                               {guest.email}
                             </p>
@@ -797,6 +816,21 @@ function Dashboard() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="email@exemplo.com"
                   required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cargo (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={editForm.cargo}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, cargo: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder='Ex.: "Prof. Doutor", "Diretora de Curso", "Eng."'
                 />
               </div>
 

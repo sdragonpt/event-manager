@@ -15,6 +15,7 @@ function EmailTemplate() {
     nome: "João Silva",
     email: "exemplo@email.com",
     id: "preview-id",
+    cargo: "Prof. Doutor",
   });
   const [showPreview, setShowPreview] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -138,9 +139,16 @@ function EmailTemplate() {
     const selectedEvent = events.find((e) => e.id === selectedEventId);
     if (!selectedEvent) return { assunto: "", corpo: "" };
 
+    // Nome formal → se tiver cargo = "Diretor João Silva"
+    const nomeFormal = previewGuest.cargo
+      ? `${previewGuest.cargo} ${previewGuest.nome}`
+      : previewGuest.nome;
+
     const replacements = {
       "{{nome}}": previewGuest.nome,
       "{{email}}": previewGuest.email,
+      "{{cargo}}": previewGuest.cargo || "",
+      "{{nome_formal}}": nomeFormal,
       "{{link}}": `${window.location.origin}/confirmar?id=${previewGuest.id}`,
       "{{evento}}": selectedEvent.nome,
       "{{data}}": new Date(selectedEvent.data).toLocaleDateString("pt-PT", {
@@ -155,6 +163,7 @@ function EmailTemplate() {
     let assuntoPreview = template.assunto;
     let corpoPreview = template.corpo;
 
+    // Substituições globais
     Object.entries(replacements).forEach(([key, value]) => {
       assuntoPreview = assuntoPreview.replace(new RegExp(key, "g"), value);
       corpoPreview = corpoPreview.replace(new RegExp(key, "g"), value);
@@ -261,6 +270,8 @@ function EmailTemplate() {
                 {[
                   { label: "Nome", value: "{{nome}}" },
                   { label: "Email", value: "{{email}}" },
+                  { label: "Cargo", value: "{{cargo}}" },
+                  { label: "Nome formal", value: "{{nome_formal}}" },
                   { label: "Link", value: "{{link}}" },
                   { label: "Evento", value: "{{evento}}" },
                   { label: "Data", value: "{{data}}" },
