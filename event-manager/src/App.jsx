@@ -7,6 +7,9 @@ import CheckIn from "./components/CheckIn";
 import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
 import EditEvent from "./components/EditEvent";
+import EmailTemplate from "./components/EmailTemplate";
+import BulkEmailSender from "./components/BulkEmailSender";
+import { supabase } from "./lib/supabase";
 
 function App() {
   const location = useLocation();
@@ -46,6 +49,79 @@ function App() {
     return children;
   };
 
+  function BulkEmailSenderWrapper() {
+    const [eventData, setEventData] = useState(null);
+    const [guests, setGuests] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const currentEventId = localStorage.getItem("currentEventId");
+
+    useEffect(() => {
+      async function load() {
+        try {
+          if (!currentEventId) {
+            setLoading(false);
+            return;
+          }
+
+          const { data: event } = await supabase
+            .from("eventos")
+            .select("*")
+            .eq("id", currentEventId)
+            .single();
+
+          const { data: convid } = await supabase
+            .from("convidados")
+            .select("*")
+            .eq("evento_id", currentEventId);
+
+          setEventData(event);
+          setGuests(convid || []);
+        } finally {
+          setLoading(false);
+        }
+      }
+      load();
+    }, [currentEventId]);
+
+    if (loading) return <p className="px-4">A carregar…</p>;
+
+    if (!currentEventId || !eventData) {
+      return (
+        <div className="max-w-3xl mx-auto px-4">
+          <div className="bg-white rounded-xl shadow-md p-6 text-center">
+            <p className="text-gray-700 mb-2">
+              Não foi possível encontrar um evento selecionado.
+            </p>
+            <p className="text-gray-500 text-sm">
+              Vai ao Dashboard, escolhe um evento e tenta novamente.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (guests.length === 0) {
+      return (
+        <div className="max-w-3xl mx-auto px-4">
+          <div className="bg-white rounded-xl shadow-md p-6 text-center">
+            <p className="text-gray-700 mb-2">
+              Este evento ainda não tem convidados.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <BulkEmailSender
+        eventId={currentEventId}
+        eventData={eventData}
+        guests={guests}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {showNav && (
@@ -83,6 +159,16 @@ function App() {
                       }`}
                     >
                       Convidados
+                    </Link>
+                    <Link
+                      to="/email-templates"
+                      className={`px-3 py-2 text-sm font-medium rounded-md transition ${
+                        location.pathname === "/email-templates"
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      Templates Email
                     </Link>
                     <Link
                       to="/checkin"
@@ -184,6 +270,16 @@ function App() {
                   Convidados
                 </Link>
                 <Link
+                  to="/email-templates"
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition ${
+                    location.pathname === "/email-templates"
+                      ? "bg-blue-50 text-blue-600"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  Templates Email
+                </Link>
+                <Link
                   to="/checkin"
                   className={`block px-3 py-2 rounded-md text-base font-medium transition ${
                     location.pathname === "/checkin"
@@ -255,6 +351,14 @@ function App() {
             }
           />
           <Route
+            path="/email-templates"
+            element={
+              <RequireAuth>
+                <EmailTemplate />
+              </RequireAuth>
+            }
+          />
+          <Route
             path="/checkin"
             element={
               <RequireAuth>
@@ -275,6 +379,14 @@ function App() {
             element={
               <RequireAuth>
                 <EditEvent />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/enviar-emails"
+            element={
+              <RequireAuth>
+                <BulkEmailSenderWrapper />
               </RequireAuth>
             }
           />
