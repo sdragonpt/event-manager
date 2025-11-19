@@ -7,8 +7,8 @@ import emailjs from "@emailjs/browser";
 // (os valores são os que usaste no outro projeto)
 emailjs.init("YZWRdopb-zpik6r8g");
 
-const SERVICE_ID = "service_8o9onje";
-const TEMPLATE_ID = "template_nlissir";
+const SERVICE_ID = "service_hqo7rbq";
+const TEMPLATE_ID = "template_l4umitw";
 
 // Função para enviar email via EmailJS (frontend)
 async function sendEmailViaSMTP({
