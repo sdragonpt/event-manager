@@ -1,42 +1,49 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import toast from "react-hot-toast";
+import emailjs from "@emailjs/browser";
 
-// Função para enviar email via Microsoft Graph API
-async function sendEmailViaSMTP({ to, subject, body, fromName, fromEmail }) {
+// 🔧 Configuração do EmailJS
+// (os valores são os que usaste no outro projeto)
+emailjs.init("YZWRdopb-zpik6r8g");
+
+const SERVICE_ID = "service_8o9onje";
+const TEMPLATE_ID = "template_nlissir";
+
+// Função para enviar email via EmailJS (frontend)
+async function sendEmailViaSMTP({
+  to,
+  subject,
+  body,
+  fromName,
+  fromEmail,
+  eventName,
+  eventDate,
+  eventTime,
+}) {
   try {
-    const EMAIL_FUNCTION_URL = "/.netlify/functions/send-email";
-
-    const response = await fetch(EMAIL_FUNCTION_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        to,
-        subject,
-        body,
-        fromName,
-        fromEmail,
-      }),
+    const formattedDate = new Date(eventDate).toLocaleDateString("pt-PT", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
     });
 
-    if (!response.ok) {
-      let errorMessage = "Erro ao enviar email";
+    await emailjs.send(SERVICE_ID, TEMPLATE_ID, {
+      // Estes nomes têm de corresponder às variáveis definidas no template do EmailJS
+      to_email: to,
+      subject,
+      message: body,
+      event_name: eventName,
+      event_date: formattedDate,
+      event_time: eventTime || "",
+      from_name: fromName,
+      from_email: fromEmail,
+    });
 
-      try {
-        const error = await response.json();
-        errorMessage = error.message || errorMessage;
-      } catch {
-        // se não vier JSON, mantemos a mensagem genérica
-      }
-
-      throw new Error(errorMessage);
-    }
-
-    return await response.json();
+    return { success: true };
   } catch (error) {
-    throw error;
+    console.error("Erro ao enviar email via EmailJS:", error);
+    throw new Error("Erro ao enviar email");
   }
 }
 
@@ -46,7 +53,7 @@ function BulkEmailSender({ eventId, eventData, guests, onComplete }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [template, setTemplate] = useState(null);
   const [loadingTemplate, setLoadingTemplate] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState("todos"); // todos, pendentes, confirmados
+  const [selectedFilter, setSelectedFilter] = useState("todos"); // todos, pendentes, confirmados, nao-enviados
 
   const loadTemplate = async () => {
     setLoadingTemplate(true);
@@ -102,6 +109,12 @@ function BulkEmailSender({ eventId, eventData, guests, onComplete }) {
     const hasTemplate = await loadTemplate();
     if (!hasTemplate) return;
 
+    const filtered = getFilteredGuests();
+    if (filtered.length === 0) {
+      toast.error("Não há convidados para enviar neste filtro.");
+      return;
+    }
+
     setShowConfirm(true);
   };
 
@@ -141,13 +154,16 @@ function BulkEmailSender({ eventId, eventData, guests, onComplete }) {
           corpo = corpo.replace(new RegExp(key, "g"), value);
         });
 
-        // Enviar email via Microsoft Graph API
+        // Enviar email via EmailJS
         await sendEmailViaSMTP({
           to: guest.email,
           subject: assunto,
           body: corpo,
           fromName: template.remetente_nome,
           fromEmail: template.remetente_email,
+          eventName: eventData.nome,
+          eventDate: eventData.data,
+          eventTime: eventData.hora?.slice(0, 5),
         });
 
         // Registrar log de envio
@@ -172,8 +188,8 @@ function BulkEmailSender({ eventId, eventData, guests, onComplete }) {
         sent++;
         setProgress({ sent, total, errors });
 
-        // Pequeno delay para não sobrecarregar a API
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        // Pequeno delay para não rebentar o limite do EmailJS
+        await new Promise((resolve) => setTimeout(resolve, 200));
       } catch (error) {
         console.error(`Erro ao enviar email para ${guest.email}:`, error);
         errors++;
@@ -184,8 +200,8 @@ function BulkEmailSender({ eventId, eventData, guests, onComplete }) {
           convidado_id: guest.id,
           evento_id: eventId,
           email_destinatario: guest.email,
-          assunto: template.assunto,
-          corpo: template.corpo,
+          assunto: template?.assunto || "",
+          corpo: template?.corpo || "",
           status: "erro",
           erro_mensagem: error.message,
         });
@@ -257,7 +273,7 @@ function BulkEmailSender({ eventId, eventData, guests, onComplete }) {
         )}
       </button>
 
-      {/* Progress */}
+      {/* Progresso */}
       {sending && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex justify-between items-center mb-2">
@@ -272,7 +288,10 @@ function BulkEmailSender({ eventId, eventData, guests, onComplete }) {
             <div
               className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
               style={{
-                width: `${(progress.sent / progress.total) * 100}%`,
+                width:
+                  progress.total > 0
+                    ? `${(progress.sent / progress.total) * 100}%`
+                    : "0%",
               }}
             ></div>
           </div>

@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "@supabase/supabase-js": "^2.39.0",
     "html5-qrcode": "^2.3.8",
     "nodemailer": "^7.0.10",
