@@ -17,6 +17,7 @@ async function sendEmailViaSMTP({
   body,
   fromName,
   fromEmail,
+  replyTo,
   eventName,
   eventDate,
   eventTime,
@@ -38,6 +39,7 @@ async function sendEmailViaSMTP({
       event_time: eventTime || "",
       from_name: fromName,
       from_email: fromEmail,
+      reply_to: replyTo,
     });
 
     return { success: true };
@@ -168,6 +170,7 @@ function BulkEmailSender({ eventId, eventData, guests, onComplete }) {
           body: corpo,
           fromName: template.remetente_nome,
           fromEmail: template.remetente_email,
+          replyTo: template.remetente_email,
           eventName: eventData.nome,
           eventDate: eventData.data,
           eventTime: eventData.hora?.slice(0, 5),
