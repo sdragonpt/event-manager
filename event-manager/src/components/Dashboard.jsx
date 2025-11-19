@@ -128,6 +128,145 @@ function Dashboard() {
     }
   };
 
+  const downloadHtmlInvite = (guest) => {
+    if (!selectedEvent) {
+      toast.error("Nenhum evento selecionado.");
+      return;
+    }
+
+    const nomeFormal = guest.cargo
+      ? `${guest.cargo} ${guest.nome}`
+      : guest.nome;
+
+    const dataFormatada = selectedEvent.data
+      ? new Date(selectedEvent.data).toLocaleDateString("pt-PT", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })
+      : "";
+
+    const horaFormatada = selectedEvent.hora
+      ? selectedEvent.hora.slice(0, 5)
+      : "";
+
+    const linkConfirmacao = `${window.location.origin}/confirmar?id=${guest.id}`;
+
+    const fullHtml = `
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8" />
+<title>Convite UTAD</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+
+<body style="margin:0; padding:0; background-color:#f3f4f6; font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f4f6; margin:0; padding:24px 12px; color:#111827;">
+  <tr>
+    <td align="center">
+      <table width="840" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #e5e7eb;">
+
+        <tr>
+          <td style="background: linear-gradient(135deg, #eabf71, #f6e89f, #e3ba70); padding:24px 28px; color:#ffffff;">
+            <table width="100%">
+              <tr>
+                <td valign="middle" style="text-align:left;">
+                  <p style="font-size:14px; margin:0 0 4px 0; opacity:0.9;">Convite</p>
+                  <h1 style="font-size:22px; font-weight:700; margin:0 0 6px 0;">${
+                    selectedEvent.nome
+                  }</h1>
+                  <p style="font-size:14px; margin:0; opacity:0.9;">Confirmação de presença e detalhes do evento</p>
+                </td>
+
+                <td valign="middle" align="right">
+                  <img src="https://i.imgur.com/lXOAbIc.png" width="85" style="display:block;" alt="Logo" />
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:24px 28px; font-size:15px; line-height:1.6; color:#111827;">
+            <p>Caro(a) ${nomeFormal},</p>
+            <p>
+              É com grande prazer que convidamos V. Ex.ª para o evento
+              <strong>${selectedEvent.nome}</strong>.
+            </p>
+
+            <p>
+              <strong>Data:</strong> ${dataFormatada}<br/>
+              <strong>Hora:</strong> ${horaFormatada}<br/>
+              <strong>Local:</strong> ${selectedEvent.local || ""}
+            </p>
+
+            <p>
+              Para confirmar a sua presença, utilize o seguinte link:<br/>
+              <a href="${linkConfirmacao}" target="_blank">${linkConfirmacao}</a>
+            </p>
+
+            <p>
+              Com os melhores cumprimentos,<br/>
+              Universidade de Trás-os-Montes e Alto Douro
+            </p>
+
+            <p style="margin:2px 0;">
+              <strong>Alumni UTAD Wine & Cheese</strong>
+            </p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:0;">
+            <img src="https://i.imgur.com/EhHkOEp.jpeg" width="840" style="display:block; width:100%; max-width:840px; height:auto; border:0;" alt="Banner do Evento" />
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:14px 24px; font-size:12px; color:#6b7280; background:#f9fafb; border-top:1px solid #e5e7eb;">
+            <p style="margin:2px 0;">Este email foi preparado para: <strong>${
+              guest.email
+            }</strong></p>
+            <p style="margin:2px 0;">Para qualquer esclarecimento: <strong>alumni2025@utad.pt</strong></p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
+  `.trim();
+
+    // 📝 Criar blob e forçar download
+    const blob = new Blob([fullHtml], { type: "text/html;charset=utf-8;" });
+
+    const safeEventName = (selectedEvent.nome || "evento")
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9\-]/g, "");
+
+    const safeGuestName = (guest.nome || "convidado")
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9\-]/g, "");
+
+    const fileName = `convite-${safeEventName}-${safeGuestName}.html`;
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success("Ficheiro HTML do convite descarregado!");
+  };
+
   const updateMesa = async (guestId, newMesa) => {
     try {
       const { error } = await supabase
@@ -677,6 +816,7 @@ function Dashboard() {
                         {/* Ações */}
                         <td className="px-4 py-3 text-center">
                           <div className="flex justify-center space-x-2">
+                            {/* Editar */}
                             <button
                               onClick={() => openEditModal(guest)}
                               className="text-blue-600 hover:text-blue-900"
@@ -697,6 +837,7 @@ function Dashboard() {
                               </svg>
                             </button>
 
+                            {/* Copiar link simples */}
                             <button
                               onClick={() =>
                                 navigator.clipboard
@@ -723,6 +864,28 @@ function Dashboard() {
                               </svg>
                             </button>
 
+                            {/* Download convite HTML */}
+                            <button
+                              onClick={() => downloadHtmlInvite(guest)}
+                              className="text-yellow-600 hover:text-yellow-900"
+                              title="Descarregar convite HTML"
+                            >
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 12l-4 4m0 0l-4-4m4 4V4"
+                                />
+                              </svg>
+                            </button>
+
+                            {/* Remover */}
                             <button
                               onClick={() => deleteGuest(guest.id)}
                               className="text-red-600 hover:text-red-900"
