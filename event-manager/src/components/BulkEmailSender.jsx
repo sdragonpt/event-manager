@@ -3,19 +3,11 @@ import { supabase } from "../lib/supabase";
 import toast from "react-hot-toast";
 
 // Função para enviar email via Microsoft Graph API
-async function sendEmailViaMicrosoft({
-  to,
-  subject,
-  body,
-  fromName,
-  fromEmail,
-}) {
+async function sendEmailViaSMTP({ to, subject, body, fromName, fromEmail }) {
   try {
-    // Esta função precisa de um backend (Supabase Edge Function ou API separada)
-    const SUPABASE_FUNCTION_URL =
-      "https://hricrwfhshdmchbpfpqh.supabase.co/functions/v1/send-email-smtp";
+    const EMAIL_FUNCTION_URL = "/.netlify/functions/send-email";
 
-    const response = await fetch(SUPABASE_FUNCTION_URL, {
+    const response = await fetch(EMAIL_FUNCTION_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -30,8 +22,16 @@ async function sendEmailViaMicrosoft({
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Erro ao enviar email");
+      let errorMessage = "Erro ao enviar email";
+
+      try {
+        const error = await response.json();
+        errorMessage = error.message || errorMessage;
+      } catch {
+        // se não vier JSON, mantemos a mensagem genérica
+      }
+
+      throw new Error(errorMessage);
     }
 
     return await response.json();
@@ -142,7 +142,7 @@ function BulkEmailSender({ eventId, eventData, guests, onComplete }) {
         });
 
         // Enviar email via Microsoft Graph API
-        await sendEmailViaMicrosoft({
+        await sendEmailViaSMTP({
           to: guest.email,
           subject: assunto,
           body: corpo,
