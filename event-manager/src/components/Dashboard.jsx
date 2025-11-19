@@ -571,6 +571,9 @@ function Dashboard() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">
                         Email
                       </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">
+                        Cargo
+                      </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                         Mesa
                       </th>
@@ -588,24 +591,36 @@ function Dashboard() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredGuests.map((guest) => (
                       <tr key={guest.id} className="hover:bg-gray-50">
+                        {/* Nome + info mobile */}
                         <td className="px-4 py-3">
                           <div>
                             <p className="text-sm font-medium text-gray-900">
                               {guest.nome}
                             </p>
-                            {guest.cargo && (
-                              <p className="text-xs text-gray-500">
-                                {guest.cargo}
-                              </p>
-                            )}
+
+                            {/* Cargo visível só em mobile, em baixo do nome */}
+                            <p className="text-xs text-gray-500 md:hidden">
+                              {guest.cargo || "—"}
+                            </p>
+
+                            {/* Email em mobile */}
                             <p className="text-xs text-gray-500 md:hidden">
                               {guest.email}
                             </p>
                           </div>
                         </td>
+
+                        {/* Email (desktop) */}
                         <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">
                           {guest.email}
                         </td>
+
+                        {/* Cargo (desktop) */}
+                        <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">
+                          {guest.cargo || "—"}
+                        </td>
+
+                        {/* Mesa */}
                         <td className="px-4 py-3 text-sm text-gray-500 text-center">
                           <input
                             type="text"
@@ -620,6 +635,8 @@ function Dashboard() {
                             placeholder="-"
                           />
                         </td>
+
+                        {/* Status */}
                         <td className="px-4 py-3 text-center">
                           <button
                             onClick={() =>
@@ -640,6 +657,8 @@ function Dashboard() {
                               : "Pendente"}
                           </button>
                         </td>
+
+                        {/* Check-in */}
                         <td className="px-4 py-3 text-center">
                           <button
                             onClick={() =>
@@ -654,6 +673,8 @@ function Dashboard() {
                             {guest.checkin ? "✓ Sim" : "Não"}
                           </button>
                         </td>
+
+                        {/* Ações */}
                         <td className="px-4 py-3 text-center">
                           <div className="flex justify-center space-x-2">
                             <button
@@ -675,6 +696,7 @@ function Dashboard() {
                                 />
                               </svg>
                             </button>
+
                             <button
                               onClick={() =>
                                 navigator.clipboard
@@ -700,6 +722,7 @@ function Dashboard() {
                                 />
                               </svg>
                             </button>
+
                             <button
                               onClick={() => deleteGuest(guest.id)}
                               className="text-red-600 hover:text-red-900"
