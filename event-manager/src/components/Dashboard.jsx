@@ -182,8 +182,11 @@ function Dashboard() {
 
         <tr>
           <td style="padding:24px 28px; font-size:15px; line-height:1.6; color:#111827;">
-            <p>Exmo.(a) Sr.(a) ${guest.cargo},<br/>
-            ${guest.nome},</p>
+            <p>
+  Exmo.(a) Sr.(a)
+  ${guest.cargo ? ` ${guest.cargo}` : ""},<br/>
+  ${guest.nome},
+</p>
             
             <p>
               É com grande prazer que convidamos V. Ex.ª para o evento
@@ -413,7 +416,7 @@ function Dashboard() {
           evento_id: selectedEvent.id,
           nome: newGuestForm.nome.trim(),
           email: newGuestForm.email.trim(),
-          cargo: newGuestForm.cargo.trim() || null,
+          cargo: newGuestForm.cargo.trim() || "",
           mesa: newGuestForm.mesa.trim() || null,
           confirmado: false,
           rejeitado: false,
