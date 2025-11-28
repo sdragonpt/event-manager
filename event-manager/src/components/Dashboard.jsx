@@ -4,6 +4,16 @@ import { supabase } from "../lib/supabase";
 import toast from "react-hot-toast";
 
 function Dashboard() {
+  const ADD_GUESTS_PASSWORD = "12345";
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addPasswordInput, setAddPasswordInput] = useState("");
+  const [isPasswordValid, setIsPasswordValid] = useState(false);
+  const [newGuestForm, setNewGuestForm] = useState({
+    nome: "",
+    email: "",
+    cargo: "",
+    mesa: "",
+  });
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [guests, setGuests] = useState([]);
@@ -340,6 +350,83 @@ function Dashboard() {
     }
   };
 
+  const openAddModal = () => {
+    if (!selectedEvent) {
+      toast.error("Selecione um evento primeiro");
+      return;
+    }
+    setShowAddModal(true);
+    setAddPasswordInput("");
+    setIsPasswordValid(false);
+    setNewGuestForm({ nome: "", email: "", cargo: "", mesa: "" });
+  };
+
+  const closeAddModal = () => {
+    setShowAddModal(false);
+    setAddPasswordInput("");
+    setIsPasswordValid(false);
+    setNewGuestForm({ nome: "", email: "", cargo: "", mesa: "" });
+  };
+
+  const handleCheckAddPassword = (e) => {
+    e.preventDefault();
+    if (addPasswordInput === ADD_GUESTS_PASSWORD) {
+      setIsPasswordValid(true);
+      toast.success("Acesso autorizado");
+    } else {
+      toast.error("Palavra-passe incorreta");
+    }
+  };
+
+  const handleAddGuestSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!isPasswordValid) {
+      toast.error("Introduza a palavra-passe correta para continuar");
+      return;
+    }
+
+    if (!newGuestForm.nome.trim()) {
+      toast.error("Nome é obrigatório");
+      return;
+    }
+
+    if (!newGuestForm.email.trim()) {
+      toast.error("Email é obrigatório");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newGuestForm.email.trim())) {
+      toast.error("Email inválido");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("convidados").insert([
+        {
+          nome: newGuestForm.nome.trim(),
+          email: newGuestForm.email.trim(),
+          cargo: newGuestForm.cargo.trim() || null,
+          mesa: newGuestForm.mesa.trim() || null,
+          evento_id: selectedEvent.id,
+          confirmado: false,
+          rejeitado: false,
+          checkin: false,
+        },
+      ]);
+
+      if (error) throw error;
+
+      toast.success("Convidado adicionado com sucesso");
+      setNewGuestForm({ nome: "", email: "", cargo: "", mesa: "" });
+      loadEventData();
+    } catch (error) {
+      console.error("Erro ao adicionar convidado:", error);
+      toast.error("Erro ao adicionar convidado");
+    }
+  };
+
   const exportToCSV = () => {
     if (guests.length === 0) {
       toast.error("Nenhum convidado para exportar");
@@ -428,6 +515,12 @@ function Dashboard() {
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-md hover:shadow-lg"
               >
                 ✏️ Editar Evento
+              </button>
+              <button
+                onClick={openAddModal}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-medium shadow-md hover:shadow-lg"
+              >
+                ➕ Adicionar Convidado
               </button>
               <button
                 onClick={() => navigate("/enviar-emails")}
@@ -1030,6 +1123,163 @@ function Dashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Adicionar Convidado (protegido por palavra-passe) */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-900">
+                Adicionar Convidado
+              </h3>
+              <button
+                onClick={closeAddModal}
+                className="text-gray-400 hover:text-gray-600 transition"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Passo 1: Palavra-passe */}
+            {!isPasswordValid && (
+              <form
+                onSubmit={handleCheckAddPassword}
+                className="space-y-4 mb-4"
+              >
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Palavra-passe para adicionar convidados
+                  </label>
+                  <input
+                    type="password"
+                    value={addPasswordInput}
+                    onChange={(e) => setAddPasswordInput(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Introduza a palavra-passe"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
+                >
+                  Confirmar acesso
+                </button>
+                <p className="text-xs text-gray-500 mt-1">
+                  * Apenas quem conhece esta palavra-passe pode adicionar novos
+                  convidados a esta lista.
+                </p>
+              </form>
+            )}
+
+            {/* Passo 2: Formulário de novo convidado */}
+            {isPasswordValid && (
+              <form onSubmit={handleAddGuestSubmit} className="space-y-4">
+                <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg text-xs text-indigo-800 mb-2">
+                  Está a adicionar convidados ao evento:{" "}
+                  <strong>{selectedEvent?.nome}</strong>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nome <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newGuestForm.nome}
+                    onChange={(e) =>
+                      setNewGuestForm({ ...newGuestForm, nome: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nome completo"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={newGuestForm.email}
+                    onChange={(e) =>
+                      setNewGuestForm({
+                        ...newGuestForm,
+                        email: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="email@exemplo.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cargo (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newGuestForm.cargo}
+                    onChange={(e) =>
+                      setNewGuestForm({
+                        ...newGuestForm,
+                        cargo: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder='Ex.: "Prof. Doutor", "Diretora de Curso", "Eng."'
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Mesa (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newGuestForm.mesa}
+                    onChange={(e) =>
+                      setNewGuestForm({
+                        ...newGuestForm,
+                        mesa: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Número da mesa"
+                  />
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={closeAddModal}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium shadow-md hover:shadow-lg"
+                  >
+                    Adicionar
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
