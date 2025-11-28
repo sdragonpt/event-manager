@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { v4 as uuidv4 } from "uuid";
 import toast from "react-hot-toast";
 
 function Dashboard() {
@@ -402,14 +403,18 @@ function Dashboard() {
       return;
     }
 
+    // 👉 Gerar ID tal como no UploadGuests.jsx
+    const newId = uuidv4();
+
     try {
       const { error } = await supabase.from("convidados").insert([
         {
+          id: newId, // 👈 obrigatório por causa do NOT NULL na tabela
+          evento_id: selectedEvent.id,
           nome: newGuestForm.nome.trim(),
           email: newGuestForm.email.trim(),
           cargo: newGuestForm.cargo.trim() || null,
           mesa: newGuestForm.mesa.trim() || null,
-          evento_id: selectedEvent.id,
           confirmado: false,
           rejeitado: false,
           checkin: false,
@@ -418,12 +423,29 @@ function Dashboard() {
 
       if (error) throw error;
 
-      toast.success("Convidado adicionado com sucesso");
+      // 🔗 Gerar link de confirmação para este convidado
+      const link = `${window.location.origin}/confirmar?id=${newId}`;
+
+      // 🧷 Tentar copiar automaticamente para a área de transferência
+      try {
+        await navigator.clipboard.writeText(link);
+        toast.success(
+          "Convidado adicionado! Link de confirmação copiado para a área de transferência."
+        );
+      } catch (err) {
+        console.warn("Não foi possível copiar automaticamente o link:", err);
+        toast.success(
+          "Convidado adicionado com sucesso! (link de confirmação gerado – verifica a consola)."
+        );
+        console.log("Link de confirmação do convidado:", link);
+      }
+
+      // Limpar formulário e recarregar lista
       setNewGuestForm({ nome: "", email: "", cargo: "", mesa: "" });
       loadEventData();
     } catch (error) {
       console.error("Erro ao adicionar convidado:", error);
-      toast.error("Erro ao adicionar convidado");
+      toast.error("Erro ao adicionar convidado: " + error.message);
     }
   };
 
