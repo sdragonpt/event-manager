@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Link,
+  useLocation,
+  Navigate,
+  useNavigate,
+} from "react-router-dom";
 import CreateEvent from "./components/CreateEvent";
 import UploadGuests from "./components/UploadGuests";
 import Confirm from "./components/Confirm";
@@ -13,11 +20,17 @@ import { supabase } from "./lib/supabase";
 
 function App() {
   const location = useLocation();
+  const navigate = useNavigate();
 
-  // autenticação com persistência no localStorage
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem("isAuthenticated") === "true";
+  // autenticação com role (admin / checkin) guardado no localStorage
+  const [auth, setAuth] = useState(() => {
+    const storedRole = localStorage.getItem("authRole");
+    return {
+      isAuthenticated: !!storedRole,
+      role: storedRole, // "admin" ou "checkin"
+    };
   });
+
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Não mostrar navegação na página de confirmação nem na página de login
@@ -25,15 +38,22 @@ function App() {
     !location.pathname.includes("/confirmar") &&
     !location.pathname.includes("/login");
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-    localStorage.setItem("isAuthenticated", "true");
+  const handleLogin = (role) => {
+    setAuth({ isAuthenticated: true, role });
+    localStorage.setItem("authRole", role);
+
+    if (role === "admin") {
+      navigate("/", { replace: true });
+    } else {
+      navigate("/checkin", { replace: true });
+    }
   };
 
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem("isAuthenticated");
+    setAuth({ isAuthenticated: false, role: null });
+    localStorage.removeItem("authRole");
     setMobileOpen(false);
+    navigate("/login", { replace: true });
   };
 
   // Fechar menu mobile quando mudar de rota
@@ -41,10 +61,22 @@ function App() {
     setMobileOpen(false);
   }, [location.pathname]);
 
-  // wrapper para proteger rotas
+  // wrapper para proteger rotas (qualquer utilizador autenticado)
   const RequireAuth = ({ children }) => {
-    if (!isAuthenticated) {
+    if (!auth.isAuthenticated) {
       return <Navigate to="/login" replace />;
+    }
+    return children;
+  };
+
+  // wrapper para proteger rotas apenas para admin
+  const RequireAdmin = ({ children }) => {
+    if (!auth.isAuthenticated) {
+      return <Navigate to="/login" replace />;
+    }
+    if (auth.role !== "admin") {
+      // se for checkin-only, manda para o check-in
+      return <Navigate to="/checkin" replace />;
     }
     return children;
   };
@@ -131,7 +163,7 @@ function App() {
               <div className="flex justify-between h-16">
                 <div className="flex items-center space-x-8">
                   <Link
-                    to="/"
+                    to={auth.role === "admin" ? "/" : "/checkin"}
                     className="flex items-center space-x-2 text-xl font-semibold text-gray-900 hover:text-blue-600 transition"
                     onClick={() => setMobileOpen(false)}
                   >
@@ -140,36 +172,42 @@ function App() {
                   </Link>
                   {/* Menu desktop */}
                   <div className="hidden md:flex space-x-1">
-                    <Link
-                      to="/"
-                      className={`px-3 py-2 text-sm font-medium rounded-md transition ${
-                        location.pathname === "/"
-                          ? "bg-blue-50 text-blue-600"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      }`}
-                    >
-                      Criar Evento
-                    </Link>
-                    <Link
-                      to="/upload"
-                      className={`px-3 py-2 text-sm font-medium rounded-md transition ${
-                        location.pathname === "/upload"
-                          ? "bg-blue-50 text-blue-600"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      }`}
-                    >
-                      Convidados
-                    </Link>
-                    <Link
-                      to="/email-templates"
-                      className={`px-3 py-2 text-sm font-medium rounded-md transition ${
-                        location.pathname === "/email-templates"
-                          ? "bg-blue-50 text-blue-600"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      }`}
-                    >
-                      Templates Email
-                    </Link>
+                    {auth.role === "admin" && (
+                      <>
+                        <Link
+                          to="/"
+                          className={`px-3 py-2 text-sm font-medium rounded-md transition ${
+                            location.pathname === "/"
+                              ? "bg-blue-50 text-blue-600"
+                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                          }`}
+                        >
+                          Criar Evento
+                        </Link>
+                        <Link
+                          to="/upload"
+                          className={`px-3 py-2 text-sm font-medium rounded-md transition ${
+                            location.pathname === "/upload"
+                              ? "bg-blue-50 text-blue-600"
+                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                          }`}
+                        >
+                          Convidados
+                        </Link>
+                        <Link
+                          to="/email-templates"
+                          className={`px-3 py-2 text-sm font-medium rounded-md transition ${
+                            location.pathname === "/email-templates"
+                              ? "bg-blue-50 text-blue-600"
+                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                          }`}
+                        >
+                          Templates Email
+                        </Link>
+                      </>
+                    )}
+
+                    {/* Check-in visível para ambos os papéis */}
                     <Link
                       to="/checkin"
                       className={`px-3 py-2 text-sm font-medium rounded-md transition ${
@@ -180,22 +218,25 @@ function App() {
                     >
                       Check-in
                     </Link>
-                    <Link
-                      to="/dashboard"
-                      className={`px-3 py-2 text-sm font-medium rounded-md transition ${
-                        location.pathname === "/dashboard"
-                          ? "bg-blue-50 text-blue-600"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      }`}
-                    >
-                      Dashboard
-                    </Link>
+
+                    {auth.role === "admin" && (
+                      <Link
+                        to="/dashboard"
+                        className={`px-3 py-2 text-sm font-medium rounded-md transition ${
+                          location.pathname === "/dashboard"
+                            ? "bg-blue-50 text-blue-600"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        }`}
+                      >
+                        Dashboard
+                      </Link>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-4">
                   {/* Botão de Logout desktop */}
-                  {isAuthenticated && (
+                  {auth.isAuthenticated && (
                     <button
                       onClick={handleLogout}
                       className="hidden md:flex items-center space-x-1 text-red-600 hover:text-red-700 px-3 py-2 text-sm font-medium transition"
@@ -249,36 +290,42 @@ function App() {
           {mobileOpen && (
             <div className="md:hidden bg-white shadow-lg border-b">
               <div className="px-4 py-3 space-y-1">
-                <Link
-                  to="/"
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition ${
-                    location.pathname === "/"
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  Criar Evento
-                </Link>
-                <Link
-                  to="/upload"
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition ${
-                    location.pathname === "/upload"
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  Convidados
-                </Link>
-                <Link
-                  to="/email-templates"
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition ${
-                    location.pathname === "/email-templates"
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  Templates Email
-                </Link>
+                {auth.role === "admin" && (
+                  <>
+                    <Link
+                      to="/"
+                      className={`block px-3 py-2 rounded-md text-base font-medium transition ${
+                        location.pathname === "/"
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      Criar Evento
+                    </Link>
+                    <Link
+                      to="/upload"
+                      className={`block px-3 py-2 rounded-md text-base font-medium transition ${
+                        location.pathname === "/upload"
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      Convidados
+                    </Link>
+                    <Link
+                      to="/email-templates"
+                      className={`block px-3 py-2 rounded-md text-base font-medium transition ${
+                        location.pathname === "/email-templates"
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      Templates Email
+                    </Link>
+                  </>
+                )}
+
+                {/* Check-in sempre visível */}
                 <Link
                   to="/checkin"
                   className={`block px-3 py-2 rounded-md text-base font-medium transition ${
@@ -289,17 +336,21 @@ function App() {
                 >
                   Check-in
                 </Link>
-                <Link
-                  to="/dashboard"
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition ${
-                    location.pathname === "/dashboard"
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  Dashboard
-                </Link>
-                {isAuthenticated && (
+
+                {auth.role === "admin" && (
+                  <Link
+                    to="/dashboard"
+                    className={`block px-3 py-2 rounded-md text-base font-medium transition ${
+                      location.pathname === "/dashboard"
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    Dashboard
+                  </Link>
+                )}
+
+                {auth.isAuthenticated && (
                   <>
                     <div className="border-t my-2"></div>
                     <button
@@ -322,8 +373,11 @@ function App() {
           <Route
             path="/login"
             element={
-              isAuthenticated ? (
-                <Navigate to="/" replace />
+              auth.isAuthenticated ? (
+                <Navigate
+                  to={auth.role === "admin" ? "/" : "/checkin"}
+                  replace
+                />
               ) : (
                 <Login onLogin={handleLogin} />
               )
@@ -337,25 +391,25 @@ function App() {
           <Route
             path="/"
             element={
-              <RequireAuth>
+              <RequireAdmin>
                 <CreateEvent />
-              </RequireAuth>
+              </RequireAdmin>
             }
           />
           <Route
             path="/upload"
             element={
-              <RequireAuth>
+              <RequireAdmin>
                 <UploadGuests />
-              </RequireAuth>
+              </RequireAdmin>
             }
           />
           <Route
             path="/email-templates"
             element={
-              <RequireAuth>
+              <RequireAdmin>
                 <EmailTemplate />
-              </RequireAuth>
+              </RequireAdmin>
             }
           />
           <Route
@@ -369,25 +423,25 @@ function App() {
           <Route
             path="/dashboard"
             element={
-              <RequireAuth>
+              <RequireAdmin>
                 <Dashboard />
-              </RequireAuth>
+              </RequireAdmin>
             }
           />
           <Route
             path="/eventos/:id/editar"
             element={
-              <RequireAuth>
+              <RequireAdmin>
                 <EditEvent />
-              </RequireAuth>
+              </RequireAdmin>
             }
           />
           <Route
             path="/enviar-emails"
             element={
-              <RequireAuth>
+              <RequireAdmin>
                 <BulkEmailSenderWrapper />
-              </RequireAuth>
+              </RequireAdmin>
             }
           />
         </Routes>

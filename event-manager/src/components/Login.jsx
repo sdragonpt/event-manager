@@ -1,7 +1,10 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 
-const ACCESS_CODE = "UTAD2025"; // <-- muda para o código que quiseres
+const ACCESS_CODES = {
+  UTAD2025: "admin",
+  alumni2025: "checkin",
+};
 
 function Login({ onLogin }) {
   const [code, setCode] = useState("");
@@ -17,16 +20,24 @@ function Login({ onLogin }) {
     }
 
     setLoading(true);
+    const trimmed = code.trim();
 
-    // Simular pequeno delay para feedback visual
     setTimeout(() => {
-      if (code.trim() === ACCESS_CODE) {
-        toast.success("Login efetuado com sucesso!");
-        onLogin();
+      const role = ACCESS_CODES[trimmed];
+
+      if (role) {
+        // se existir um papel associado a este código
+        if (role === "admin") {
+          toast.success("Login efetuado com sucesso (Acesso completo)!");
+        } else {
+          toast.success("Login efetuado com sucesso (Apenas Check-in)!");
+        }
+        onLogin(role); // passamos o papel para o App
       } else {
         toast.error("Código de acesso inválido");
         setCode("");
       }
+
       setLoading(false);
     }, 500);
   };
@@ -174,9 +185,9 @@ function Login({ onLogin }) {
                     Acesso Restrito
                   </p>
                   <p className="text-xs text-blue-700 leading-relaxed">
-                    O acesso é reservado à equipa de organização para criar
-                    eventos, fazer upload de convidados, gerir confirmações e
-                    realizar check-in.
+                    O acesso completo é reservado à equipa de organização.
+                    Alguns códigos permitem apenas acesso ao módulo de check-in
+                    para apoio operacional no dia do evento.
                   </p>
                 </div>
               </div>
