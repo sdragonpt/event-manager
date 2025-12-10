@@ -207,8 +207,8 @@ function CheckIn() {
       setLastCheckin({ ...guest, alreadyCheckedIn: false });
       toast.success(
         `✅ Check-in efetuado: ${guest.nome}${
-          guest.mesa ? " — Mesa " + guest.mesa : ""
-        }`
+          guest.cargo ? " — " + guest.cargo : ""
+        }${guest.mesa ? " — Mesa " + guest.mesa : ""}`
       );
 
       // Atualizar estatísticas e histórico
@@ -362,9 +362,17 @@ function CheckIn() {
                   <p className="font-semibold text-gray-900">
                     {lastCheckin.nome}
                   </p>
-                  <p className="text-sm text-gray-600">
-                    Mesa {lastCheckin.mesa}
-                  </p>
+
+                  {lastCheckin.cargo && (
+                    <p className="text-sm text-gray-700">{lastCheckin.cargo}</p>
+                  )}
+
+                  {lastCheckin.mesa && (
+                    <p className="text-sm text-gray-600">
+                      Mesa {lastCheckin.mesa}
+                    </p>
+                  )}
+
                   {lastCheckin.alreadyCheckedIn && (
                     <p className="text-xs sm:text-sm text-yellow-700 mt-1">
                       Já tinha feito check-in anteriormente.
@@ -419,9 +427,18 @@ function CheckIn() {
                       <p className="font-medium text-gray-900 text-sm sm:text-base">
                         {guest.nome}
                       </p>
-                      <p className="text-xs sm:text-sm text-gray-600">
-                        Mesa {guest.mesa}
-                      </p>
+
+                      {guest.cargo && (
+                        <p className="text-xs sm:text-sm text-gray-700">
+                          {guest.cargo}
+                        </p>
+                      )}
+
+                      {guest.mesa && (
+                        <p className="text-xs sm:text-sm text-gray-600">
+                          Mesa {guest.mesa}
+                        </p>
+                      )}
                     </div>
                     <span className="text-xs sm:text-sm text-gray-500">
                       {new Date(guest.updated_at).toLocaleTimeString("pt-PT", {
